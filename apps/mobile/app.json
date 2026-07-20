@@ -31,7 +31,6 @@
       ]
     },
     "plugins": [
-      "expo-router",
       "expo-font",
       "expo-notifications",
       [
@@ -40,11 +39,6 @@
           "photosPermission": "Allow DhwaniAI to access your photos for evidence upload."
         }
       ]
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "dhwaniai-responder"
-      }
-    }
+    ]
   }
 }
