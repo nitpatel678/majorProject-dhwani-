@@ -1,0 +1,18 @@
+{
+  "name": "dhwaniai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DhwaniAI - AI-powered Smart Acoustic Public Safety Monitoring System",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:backend": "cd apps/backend && npm run dev",
+    "dev:dashboard": "cd apps/dashboard && npm run dev",
+    "build:dashboard": "cd apps/dashboard && npm run build",
+    "db:push": "cd apps/backend && npx prisma db push",
+    "db:seed": "cd apps/backend && npx prisma db seed",
+    "db:studio": "cd apps/backend && npx prisma studio"
+  }
+}

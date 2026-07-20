@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  password      String
+  name          String
+  role          Role         @default(RESPONDER)
+  avatar        String?
+  badge         String?
+  rank          String?
+  phone         String?
+  area          String?
+  status        UserStatus   @default(AVAILABLE)
+  shiftStart    String?
+  shiftEnd      String?
+  latitude      Float?
+  longitude     Float?
+  isOnline      Boolean      @default(false)
+  lastSeen      DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  incidents     Incident[]   @relation("AssignedResponder")
+  reports       Report[]
+  notifications Notification[]
+  deviceTokens  DeviceToken[]
+}
+
+model Device {
+  id              String       @id @default(cuid())
+  name            String
+  serialNumber    String       @unique
+  latitude        Float
+  longitude       Float
+  address         String?
+  status          DeviceStatus @default(ACTIVE)
+  battery         Float?       @default(100)
+  signalStrength  Float?       @default(100)
+  firmwareVersion String?      @default("1.0.0")
+  networkType     String?      @default("WiFi")
+  lastSeen        DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  events     Event[]
+  deviceLogs DeviceLog[]
+}
+
+model Event {
+  id             String    @id @default(cuid())
+  type           EventType
+  confidence     Float
+  audioUrl       String?
+  latitude       Float
+  longitude      Float
+  address        String?
+  rawPredictions Json?
+  inferenceTime  Float?
+  deviceId       String?
+  device         Device?   @relation(fields: [deviceId], references: [id])
+  incident       Incident?
+  createdAt      DateTime  @default(now())
+}
+
+model Incident {
+  id          String         @id @default(cuid())
+  eventId     String         @unique
+  event       Event          @relation(fields: [eventId], references: [id])
+  status      IncidentStatus @default(OPEN)
+  priority    Priority       @default(MEDIUM)
+  description String?
+  notes       String?
+  responderId String?
+  responder   User?          @relation("AssignedResponder", fields: [responderId], references: [id])
+  assignedAt  DateTime?
+  resolvedAt  DateTime?
+  escalatedAt DateTime?
+  report      Report?
+  timeline    TimelineEntry[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Report {
+  id            String   @id @default(cuid())
+  incidentId    String   @unique
+  incident      Incident @relation(fields: [incidentId], references: [id])
+  responderId   String
+  responder     User     @relation(fields: [responderId], references: [id])
+  description   String
+  evidenceNotes String?
+  imageUrls     String[]
+  createdAt     DateTime @default(now())
+}
+
+model TimelineEntry {
+  id          String   @id @default(cuid())
+  incidentId  String
+  incident    Incident @relation(fields: [incidentId], references: [id])
+  action      String
+  description String
+  actor       String?
+  createdAt   DateTime @default(now())
+}
+
+model DeviceLog {
+  id        String   @id @default(cuid())
+  deviceId  String
+  device    Device   @relation(fields: [deviceId], references: [id])
+  level     LogLevel @default(INFO)
+  message   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+}
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  RESPONDER
+  SUPERVISOR
+}
+
+enum UserStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+  ON_DUTY
+}
+
+enum DeviceStatus {
+  ACTIVE
+  OFFLINE
+  DISABLED
+  MAINTENANCE
+}
+
+enum EventType {
+  SCREAM
+  GLASS_BREAK
+  IMPACT_CRASH
+  GUNSHOT_EXPLOSION
+  CROWD_PANIC
+  SIREN
+  NORMAL
+}
+
+enum IncidentStatus {
+  OPEN
+  ASSIGNED
+  ONGOING
+  RESOLVED
+  FALSE_ALARM
+  ESCALATED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+  DEBUG
+}
+
+enum NotificationType {
+  EMERGENCY_ALERT
+  ASSIGNMENT
+  SYSTEM
+  INCIDENT_UPDATE
+}
