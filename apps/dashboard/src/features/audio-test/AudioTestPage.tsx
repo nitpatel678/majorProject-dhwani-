@@ -387,8 +387,10 @@ export default function AudioTestPage() {
 
       setResult(data);
       toast.success('Pipeline analysis complete!');
-    } catch (error) {
-      toast.error('Analysis failed');
+    } catch (error: any) {
+      const detail = error?.response?.data?.detail || error?.response?.data?.error || error?.message || 'Unknown error';
+      toast.error(`Analysis failed: ${detail}`);
+      console.error('[AudioLab] Analysis error:', error?.response?.data || error);
     } finally {
       setAnalyzing(false);
     }

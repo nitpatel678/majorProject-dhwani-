@@ -38,7 +38,8 @@
         {
           "photosPermission": "Allow DhwaniAI to access your photos for evidence upload."
         }
-      ]
+      ],
+      "expo-router"
     ]
   }
 }
