@@ -1,11 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
-import { theme, EVENT_ICONS } from '../theme';
-
-const { width } = Dimensions.get('window');
+import { EVENT_LABELS, EVENT_ICONS } from '../theme';
 
 export default function NavigateScreen({ route, navigation }: any) {
   const { incident } = route.params;
@@ -22,7 +19,7 @@ export default function NavigateScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Map */}
+      {/* Tactical Map */}
       <MapView
         style={styles.map}
         provider={PROVIDER_DEFAULT}
@@ -44,43 +41,50 @@ export default function NavigateScreen({ route, navigation }: any) {
       </MapView>
 
       {/* Back button */}
-      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-        <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.85}>
+        <Ionicons name="chevron-back" size={20} color="#ffffff" />
       </TouchableOpacity>
 
-      {/* Bottom Sheet */}
+      {/* Tactical Bottom Control Panel */}
       <View style={styles.bottomSheet}>
         <View style={styles.handle} />
         <View style={styles.incidentRow}>
-          <Text style={styles.incidentIcon}>{EVENT_ICONS[incident.event?.type] || '🚨'}</Text>
+          <View style={styles.iconBox}>
+            <Ionicons
+              name={(EVENT_ICONS[incident.event?.type] || 'warning-outline') as any}
+              size={24}
+              color="#ffffff"
+            />
+          </View>
           <View style={styles.incidentInfo}>
-            <Text style={styles.incidentType}>{incident.event?.type?.replace(/_/g, ' ')}</Text>
-            <Text style={styles.incidentAddress} numberOfLines={2}>{incident.event?.address || 'Unknown'}</Text>
+            <Text style={styles.incidentType}>
+              {EVENT_LABELS[incident.event?.type] || incident.event?.type?.replace(/_/g, ' ')}
+            </Text>
+            <Text style={styles.incidentAddress} numberOfLines={2}>{incident.event?.address || 'Tactical Patrol Coordinate'}</Text>
           </View>
           <View style={styles.confidenceBox}>
-            <Text style={styles.confValue}>{((incident.event?.confidence || 0) * 100).toFixed(0)}%</Text>
+            <Text style={styles.confValue}>{((incident.event?.confidence || 0.85) * 100).toFixed(0)}%</Text>
+            <Text style={styles.confLabel}>Score</Text>
           </View>
         </View>
 
         <View style={styles.coordRow}>
-          <Ionicons name="location" size={14} color={theme.colors.textMuted} />
-          <Text style={styles.coordText}>{lat.toFixed(6)}, {lng.toFixed(6)}</Text>
+          <Ionicons name="location-outline" size={14} color="#737373" />
+          <Text style={styles.coordText}>GPS: {lat.toFixed(6)}, {lng.toFixed(6)}</Text>
         </View>
 
         <View style={styles.actions}>
-          <TouchableOpacity onPress={openExternalMaps} activeOpacity={0.8} style={{ flex: 1 }}>
-            <LinearGradient colors={[theme.colors.primary, theme.colors.primaryLight]} style={styles.navBtn} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <Ionicons name="navigate" size={20} color="#fff" />
-              <Text style={styles.navBtnText}>Start Navigation</Text>
-            </LinearGradient>
+          <TouchableOpacity onPress={openExternalMaps} activeOpacity={0.85} style={styles.navBtn}>
+            <Ionicons name="navigate" size={18} color="#000000" />
+            <Text style={styles.navBtnText}>Launch Turn-by-Turn GPS</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => navigation.navigate('Resolve', { incident })}
             style={styles.resolveBtn}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
-            <Ionicons name="checkmark-circle" size={20} color={theme.colors.success} />
+            <Ionicons name="checkmark-done" size={22} color="#ffffff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -89,22 +93,71 @@ export default function NavigateScreen({ route, navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
+  container: { flex: 1, backgroundColor: '#050505' },
   map: { flex: 1 },
-  backBtn: { position: 'absolute', top: 56, left: 16, width: 44, height: 44, borderRadius: 14, backgroundColor: theme.colors.surface, alignItems: 'center', justifyContent: 'center', ...theme.shadows.card, borderWidth: 1, borderColor: theme.colors.border },
-  bottomSheet: { backgroundColor: theme.colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, borderTopWidth: 1, borderTopColor: theme.colors.border },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: theme.colors.textMuted, alignSelf: 'center', marginBottom: 16 },
+  backBtn: {
+    position: 'absolute',
+    top: 56,
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#0a0a0a',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bottomSheet: {
+    backgroundColor: '#0a0a0a',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 36,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#262626', alignSelf: 'center', marginBottom: 16 },
   incidentRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  incidentIcon: { fontSize: 40, marginRight: 12 },
+  iconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#171717',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
   incidentInfo: { flex: 1 },
-  incidentType: { fontSize: theme.fontSize.lg, fontWeight: '800', color: theme.colors.text },
-  incidentAddress: { fontSize: theme.fontSize.sm, color: theme.colors.textMuted, marginTop: 2 },
-  confidenceBox: { backgroundColor: theme.colors.elevated, borderRadius: theme.radius.md, padding: 10, alignItems: 'center' },
-  confValue: { fontSize: theme.fontSize.lg, fontWeight: '800', color: theme.colors.text },
+  incidentType: { fontSize: 16, fontWeight: '800', color: '#ffffff' },
+  incidentAddress: { fontSize: 12, color: '#a3a3a3', marginTop: 2 },
+  confidenceBox: { backgroundColor: '#171717', borderRadius: 10, padding: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.06)' },
+  confValue: { fontSize: 16, fontWeight: '800', color: '#ffffff' },
+  confLabel: { fontSize: 9, color: '#737373', textTransform: 'uppercase' },
   coordRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
-  coordText: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
-  actions: { flexDirection: 'row', gap: 12 },
-  navBtn: { borderRadius: theme.radius.lg, paddingVertical: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  navBtnText: { color: '#fff', fontSize: theme.fontSize.md, fontWeight: '700' },
-  resolveBtn: { width: 56, height: 56, borderRadius: theme.radius.lg, backgroundColor: theme.colors.elevated, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.success + '30' },
+  coordText: { fontSize: 11, color: '#737373', fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+  actions: { flexDirection: 'row', gap: 10 },
+  navBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#ffffff',
+  },
+  navBtnText: { color: '#000000', fontSize: 14, fontWeight: '700' },
+  resolveBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: '#171717',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
 });

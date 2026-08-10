@@ -159,6 +159,13 @@ export const analyzeAudioPipeline = async (req: AuthRequest, res: Response): Pro
     }
 
     const filePath = req.file.path;
+    console.log('\n========================================');
+    console.log('[Pipeline] NEW ANALYSIS REQUEST');
+    console.log('[Pipeline] File:', req.file.originalname);
+    console.log('[Pipeline] Size:', (req.file.size / 1024).toFixed(1), 'KB');
+    console.log('[Pipeline] Saved to:', filePath);
+    console.log('[Pipeline] Running Python inference...');
+    console.log('========================================');
 
     try {
       const pipelineResult = runPythonPipeline(filePath, 120000);
@@ -167,14 +174,23 @@ export const analyzeAudioPipeline = async (req: AuthRequest, res: Response): Pro
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
 
       if (pipelineResult.error) {
+        console.error('[Pipeline] Python returned error:', pipelineResult.error);
         res.status(500).json({ error: pipelineResult.error });
         return;
       }
 
+      console.log('[Pipeline] ✅ SUCCESS');
+      console.log('[Pipeline] Duration:', pipelineResult.audioDuration, 's');
+      console.log('[Pipeline] Windows:', pipelineResult.totalWindows);
+      console.log('[Pipeline] Threat Score:', pipelineResult.threatScore);
+      console.log('[Pipeline] Situation:', pipelineResult.situationLevel);
+      console.log('[Pipeline] Processing Time:', pipelineResult.processingTime, 'ms');
+      console.log('========================================\n');
+
       res.json(pipelineResult);
       return;
     } catch (pythonError: any) {
-      console.error('[Pipeline] Analysis failed:', pythonError.message);
+      console.error('[Pipeline] ❌ FAILED:', pythonError.message);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       res.status(500).json({ 
         error: 'Pipeline analysis failed',

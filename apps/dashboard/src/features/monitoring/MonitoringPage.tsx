@@ -1,15 +1,28 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { Radio, AlertTriangle, Shield, Volume2, Flame, UserX, Car, Skull, Siren, Filter, Activity } from 'lucide-react';
 import api from '../../services/api';
 import { getSocket } from '../../services/socket';
 
-const EVENT_COLORS: Record<string, string> = {
-  SCREAM: '#FF5252', GLASS_BREAK: '#FFB74D', IMPACT_CRASH: '#FF7043',
-  GUNSHOT_EXPLOSION: '#F44336', CROWD_PANIC: '#E91E63', SIREN: '#42A5F5', NORMAL: '#66BB6A',
+const EVENT_ICONS: Record<string, any> = {
+  SCREAM: UserX,
+  GLASS_BREAK: Flame,
+  IMPACT_CRASH: Car,
+  GUNSHOT_EXPLOSION: Skull,
+  CROWD_PANIC: AlertTriangle,
+  SIREN: Siren,
+  NORMAL: Volume2,
 };
-const PRIORITY_COLORS: Record<string, string> = {
-  LOW: '#66BB6A', MEDIUM: '#FFB74D', HIGH: '#FF7043', CRITICAL: '#F44336',
+
+const EVENT_BADGES: Record<string, string> = {
+  SCREAM: 'text-danger bg-danger/10 border-danger/20',
+  GLASS_BREAK: 'text-warning bg-warning/10 border-warning/20',
+  IMPACT_CRASH: 'text-warning bg-warning/10 border-warning/20',
+  GUNSHOT_EXPLOSION: 'text-danger bg-danger/10 border-danger/20',
+  CROWD_PANIC: 'text-danger bg-danger/10 border-danger/20',
+  SIREN: 'text-info bg-info/10 border-info/20',
+  NORMAL: 'text-success bg-success/10 border-success/20',
 };
 
 export default function MonitoringPage() {
@@ -35,35 +48,38 @@ export default function MonitoringPage() {
 
   const allEvents = [...liveEvents, ...(data?.events || [])];
   const uniqueEvents = allEvents.filter((e, i, arr) => arr.findIndex(a => a.id === e.id) === i);
-
   const filters = ['all', 'SCREAM', 'GLASS_BREAK', 'IMPACT_CRASH', 'GUNSHOT_EXPLOSION', 'CROWD_PANIC', 'SIREN'];
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-display flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-white font-display flex items-center gap-2.5">
             Live Monitoring
-            <span className="w-3 h-3 rounded-full bg-danger animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
           </h1>
-          <p className="text-sm text-text-secondary">Real-time incoming alerts</p>
+          <p className="text-sm text-surface-500">Real-time acoustic event stream</p>
         </div>
-        <div className="text-right">
-          <p className="text-lg font-bold text-text-primary">{uniqueEvents.length}</p>
-          <p className="text-xs text-text-muted">Total Events</p>
+        <div className="text-right flex items-center gap-3">
+          <div className="px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-right">
+            <span className="text-sm font-semibold text-white font-mono">{uniqueEvents.length}</span>
+            <span className="text-[10px] text-surface-500 uppercase tracking-wider block">Total Events</span>
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
+      {/* Filter Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+        <Filter size={14} className="text-surface-600 shrink-0 mr-1" />
         {filters.map(f => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
               filter === f
-                ? 'bg-primary/20 text-primary-light border border-primary/30'
-                : 'bg-bg-elevated text-text-muted border border-border hover:border-border-hover'
+                ? 'bg-white text-black font-semibold shadow-glow-white'
+                : 'bg-white/[0.03] text-surface-400 border border-white/[0.06] hover:bg-white/[0.06] hover:text-white'
             }`}
           >
             {f === 'all' ? 'All Events' : f.replace(/_/g, ' ')}
@@ -71,81 +87,84 @@ export default function MonitoringPage() {
         ))}
       </div>
 
-      {/* Alert Cards */}
+      {/* Event List */}
       <AnimatePresence mode="popLayout">
-        <div className="space-y-3">
-          {uniqueEvents.map((event: any, index: number) => (
-            <motion.div
-              key={event.id}
-              layout
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ delay: index * 0.03 }}
-              className={`glass-card-hover p-5 flex items-center gap-5 ${
-                event.type === 'GUNSHOT_EXPLOSION' || event.type === 'CROWD_PANIC' ? 'border-l-2 border-l-danger' : ''
-              }`}
-            >
-              {/* Type Indicator */}
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-lg shrink-0"
-                style={{ background: `${EVENT_COLORS[event.type]}15`, border: `1px solid ${EVENT_COLORS[event.type]}30` }}
+        <div className="space-y-2.5">
+          {uniqueEvents.map((event: any, index: number) => {
+            const Icon = EVENT_ICONS[event.type] || Volume2;
+            const badgeStyle = EVENT_BADGES[event.type] || 'text-surface-400 bg-white/[0.05] border-white/[0.06]';
+            const isCritical = event.type === 'GUNSHOT_EXPLOSION' || event.type === 'CROWD_PANIC' || event.incident?.priority === 'CRITICAL';
+
+            return (
+              <motion.div
+                key={event.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ delay: index * 0.02 }}
+                className={`card-hover p-4 flex items-center gap-4 ${
+                  isCritical ? 'border-l-2 border-l-danger' : ''
+                }`}
               >
-                {event.type === 'SCREAM' ? '😱' : event.type === 'GLASS_BREAK' ? '🪟' : event.type === 'IMPACT_CRASH' ? '💥' :
-                 event.type === 'GUNSHOT_EXPLOSION' ? '🔫' : event.type === 'CROWD_PANIC' ? '👥' : event.type === 'SIREN' ? '🚨' : '🔊'}
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-sm" style={{ color: EVENT_COLORS[event.type] }}>
-                    {event.type.replace(/_/g, ' ')}
-                  </span>
-                  {event.incident?.priority === 'CRITICAL' && (
-                    <span className="badge-danger text-[10px]">CRITICAL</span>
-                  )}
+                {/* Icon Container */}
+                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0">
+                  <Icon size={18} className="text-white" />
                 </div>
-                <p className="text-xs text-text-muted truncate">{event.address || 'Location unknown'}</p>
-                <p className="text-[10px] text-text-muted mt-0.5">
-                  Device: {event.device?.name || 'N/A'} · {new Date(event.createdAt).toLocaleString()}
-                </p>
-              </div>
 
-              {/* Confidence */}
-              <div className="text-center shrink-0">
-                <p className="text-lg font-bold font-display" style={{ color: EVENT_COLORS[event.type] }}>
-                  {(event.confidence * 100).toFixed(0)}%
-                </p>
-                <p className="text-[10px] text-text-muted">Confidence</p>
-              </div>
+                {/* Event Information */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border ${badgeStyle}`}>
+                      {event.type.replace(/_/g, ' ')}
+                    </span>
+                    {isCritical && (
+                      <span className="badge-danger text-[10px] uppercase font-bold tracking-wider">CRITICAL</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-surface-400 truncate">{event.address || 'Location unknown'}</p>
+                  <p className="text-[10px] text-surface-600 mt-0.5 font-mono">
+                    Device: {event.device?.name || 'Sens-01'} · {new Date(event.createdAt).toLocaleString()}
+                  </p>
+                </div>
 
-              {/* Status */}
-              <div className="shrink-0">
-                <span className={`badge text-[10px] ${
-                  event.incident?.status === 'RESOLVED' ? 'badge-success' :
-                  event.incident?.status === 'ASSIGNED' ? 'badge-warning' :
-                  event.incident?.status === 'ESCALATED' ? 'badge-danger' : 'badge-info'
-                }`}>
-                  {event.incident?.status || 'OPEN'}
-                </span>
-              </div>
+                {/* Confidence */}
+                <div className="text-center shrink-0 px-3">
+                  <p className="text-base font-semibold font-mono text-white">
+                    {(event.confidence * 100).toFixed(0)}%
+                  </p>
+                  <p className="text-[10px] text-surface-600 uppercase tracking-wider">Confidence</p>
+                </div>
 
-              {/* Responder */}
-              <div className="text-right shrink-0 min-w-[100px]">
-                {event.incident?.responder ? (
-                  <p className="text-xs text-text-secondary">{event.incident.responder.name}</p>
-                ) : (
-                  <p className="text-xs text-text-muted">Unassigned</p>
-                )}
-              </div>
-            </motion.div>
-          ))}
+                {/* Status */}
+                <div className="shrink-0">
+                  <span className={`badge text-[10px] font-semibold uppercase ${
+                    event.incident?.status === 'RESOLVED' ? 'badge-success' :
+                    event.incident?.status === 'ASSIGNED' ? 'badge-warning' :
+                    event.incident?.status === 'ESCALATED' ? 'badge-danger' : 'badge-neutral'
+                  }`}>
+                    {event.incident?.status || 'OPEN'}
+                  </span>
+                </div>
+
+                {/* Responder */}
+                <div className="text-right shrink-0 min-w-[110px] hidden sm:block">
+                  <p className="text-xs text-surface-300 font-medium">
+                    {event.incident?.responder ? event.incident.responder.name : 'Unassigned'}
+                  </p>
+                  <p className="text-[10px] text-surface-600">Responder</p>
+                </div>
+              </motion.div>
+            );
+          })}
 
           {uniqueEvents.length === 0 && (
-            <div className="text-center py-20 text-text-muted">
-              <p className="text-5xl mb-4">📡</p>
-              <p className="text-lg font-medium">No alerts detected</p>
-              <p className="text-sm mt-1">The system is actively monitoring. Alerts will appear here in real-time.</p>
+            <div className="card text-center py-20 text-surface-600">
+              <Radio size={32} className="mx-auto mb-3 opacity-30" />
+              <p className="text-base font-medium text-surface-400">No alerts detected</p>
+              <p className="text-xs text-surface-600 mt-1 max-w-sm mx-auto">
+                System is actively listening. Incoming acoustic detections will show here instantly.
+              </p>
             </div>
           )}
         </div>

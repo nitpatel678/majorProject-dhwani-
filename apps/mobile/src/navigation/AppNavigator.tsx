@@ -40,28 +40,28 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarActiveTintColor: '#ffffff',
+        tabBarInactiveTintColor: '#525252',
         tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border,
+          backgroundColor: '#0a0a0a',
+          borderTopColor: 'rgba(255, 255, 255, 0.08)',
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 4,
+          height: 64,
+          paddingBottom: 10,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
-          fontFamily: 'System',
           fontSize: 10,
           fontWeight: '600',
+          letterSpacing: 0.2,
         },
         tabBarIcon: ({ focused, color, size }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'home';
-          if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
+          let iconName: keyof typeof Ionicons.glyphMap = 'grid-outline';
+          if (route.name === 'Home') iconName = focused ? 'grid' : 'grid-outline';
           else if (route.name === 'Notifications') iconName = focused ? 'notifications' : 'notifications-outline';
           else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
-          else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
-          return <Ionicons name={iconName} size={size} color={color} />;
+          else if (route.name === 'Settings') iconName = focused ? 'options' : 'options-outline';
+          return <Ionicons name={iconName} size={size - 2} color={color} />;
         },
       })}
     >

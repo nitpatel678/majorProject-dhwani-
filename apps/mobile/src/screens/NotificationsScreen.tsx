@@ -1,9 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { theme } from '../theme';
 import api from '../services/api';
 
 export default function NotificationsScreen() {
@@ -27,11 +25,11 @@ export default function NotificationsScreen() {
 
   const getNotifIcon = (type: string) => {
     switch (type) {
-      case 'EMERGENCY': return { icon: 'warning', color: theme.colors.danger };
-      case 'ASSIGNMENT': return { icon: 'person-add', color: theme.colors.primary };
-      case 'SYSTEM': return { icon: 'information-circle', color: theme.colors.info };
-      case 'DEVICE': return { icon: 'hardware-chip', color: theme.colors.accent };
-      default: return { icon: 'notifications', color: theme.colors.textSecondary };
+      case 'EMERGENCY': return { icon: 'warning-outline', color: '#ef4444' };
+      case 'ASSIGNMENT': return { icon: 'shield-outline', color: '#ffffff' };
+      case 'SYSTEM': return { icon: 'hardware-chip-outline', color: '#a3a3a3' };
+      case 'DEVICE': return { icon: 'radio-outline', color: '#a3a3a3' };
+      default: return { icon: 'notifications-outline', color: '#737373' };
     }
   };
 
@@ -41,9 +39,9 @@ export default function NotificationsScreen() {
       <TouchableOpacity
         onPress={() => !item.read && markReadMut.mutate(item.id)}
         style={[styles.notifCard, !item.read && styles.notifUnread]}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
-        <View style={[styles.notifIcon, { backgroundColor: `${color}15` }]}>
+        <View style={styles.notifIconBox}>
           <Ionicons name={icon as any} size={20} color={color} />
         </View>
         <View style={styles.notifContent}>
@@ -58,12 +56,10 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#0A0A0F', '#12121A']} style={StyleSheet.absoluteFill} />
-      
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          <Text style={styles.headerSubtitle}>{data?.unreadCount || 0} unread</Text>
+          <Text style={styles.headerTitle}>System Notifications</Text>
+          <Text style={styles.headerSubtitle}>{data?.unreadCount || 0} unread dispatch alerts</Text>
         </View>
         {(data?.unreadCount || 0) > 0 && (
           <TouchableOpacity onPress={() => markAllReadMut.mutate()} style={styles.markAllBtn}>
@@ -78,12 +74,12 @@ export default function NotificationsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={theme.colors.primary} />}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor="#ffffff" />}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🔔</Text>
-            <Text style={styles.emptyText}>No notifications</Text>
-            <Text style={styles.emptySubtext}>You'll be notified when alerts are assigned</Text>
+            <Ionicons name="notifications-off-outline" size={48} color="#525252" style={{ marginBottom: 12 }} />
+            <Text style={styles.emptyText}>No Active Notifications</Text>
+            <Text style={styles.emptySubtext}>You will receive alerts here when assigned to field incidents.</Text>
           </View>
         }
       />
@@ -92,23 +88,50 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16 },
-  headerTitle: { fontSize: theme.fontSize.xxl, fontWeight: '800', color: theme.colors.text },
-  headerSubtitle: { fontSize: theme.fontSize.sm, color: theme.colors.textMuted, marginTop: 2 },
-  markAllBtn: { backgroundColor: theme.colors.elevated, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border },
-  markAllText: { fontSize: theme.fontSize.xs, color: theme.colors.primaryLight, fontWeight: '600' },
+  container: { flex: 1, backgroundColor: '#050505' },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  headerTitle: { fontSize: 24, fontWeight: '800', color: '#ffffff', letterSpacing: -0.5 },
+  headerSubtitle: { fontSize: 12, color: '#737373', marginTop: 2 },
+  markAllBtn: { backgroundColor: '#171717', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  markAllText: { fontSize: 11, color: '#ffffff', fontWeight: '600' },
   list: { padding: 20 },
-  notifCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 16, flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12, borderWidth: 1, borderColor: theme.colors.border },
-  notifUnread: { borderLeftWidth: 3, borderLeftColor: theme.colors.primary },
-  notifIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  notifCard: {
+    backgroundColor: '#0a0a0a',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  notifUnread: { borderLeftWidth: 3, borderLeftColor: '#ffffff' },
+  notifIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#171717',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+  },
   notifContent: { flex: 1 },
-  notifTitle: { fontSize: theme.fontSize.sm, fontWeight: '700', color: theme.colors.text, marginBottom: 2 },
-  notifMessage: { fontSize: theme.fontSize.sm, color: theme.colors.textSecondary, lineHeight: 18 },
-  notifTime: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 6 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.primary, marginLeft: 8, marginTop: 4 },
+  notifTitle: { fontSize: 14, fontWeight: '700', color: '#ffffff', marginBottom: 2 },
+  notifMessage: { fontSize: 13, color: '#a3a3a3', lineHeight: 18 },
+  notifTime: { fontSize: 10, color: '#737373', marginTop: 6 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#ffffff', marginLeft: 8, marginTop: 4 },
   emptyState: { alignItems: 'center', paddingVertical: 80 },
-  emptyIcon: { fontSize: 64, marginBottom: 16, opacity: 0.3 },
-  emptyText: { fontSize: theme.fontSize.lg, fontWeight: '600', color: theme.colors.textSecondary },
-  emptySubtext: { fontSize: theme.fontSize.sm, color: theme.colors.textMuted, marginTop: 4 },
+  emptyText: { fontSize: 16, fontWeight: '700', color: '#ffffff' },
+  emptySubtext: { fontSize: 12, color: '#737373', marginTop: 4, textAlign: 'center' },
 });

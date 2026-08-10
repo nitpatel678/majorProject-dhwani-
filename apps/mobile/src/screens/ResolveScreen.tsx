@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import { theme, EVENT_LABELS, EVENT_ICONS } from '../theme';
+import { EVENT_LABELS, EVENT_ICONS } from '../theme';
 import api from '../services/api';
 
 export default function ResolveScreen({ route, navigation }: any) {
@@ -25,12 +24,12 @@ export default function ResolveScreen({ route, navigation }: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       queryClient.invalidateQueries({ queryKey: ['my-incidents'] });
       queryClient.invalidateQueries({ queryKey: ['incidents'] });
-      Alert.alert('✅ Resolved', 'Incident has been marked as resolved.', [
-        { text: 'OK', onPress: () => navigation.navigate('Main') },
+      Alert.alert('Field Incident Logged', 'Incident report submitted and status updated to RESOLVED.', [
+        { text: 'Acknowledge', onPress: () => navigation.navigate('Main') },
       ]);
     },
     onError: () => {
-      Alert.alert('Error', 'Failed to resolve incident. Please try again.');
+      Alert.alert('Error', 'Failed to transmit incident log. Please retry.');
     },
   });
 
@@ -48,7 +47,7 @@ export default function ResolveScreen({ route, navigation }: any) {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission', 'Camera access is required to take evidence photos.');
+      Alert.alert('Permission Error', 'Camera access is required to capture field evidence.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
@@ -59,64 +58,68 @@ export default function ResolveScreen({ route, navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#0A0A0F', '#12121A']} style={StyleSheet.absoluteFill} />
-      
-      {/* Header */}
+      {/* Modal Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="close" size={24} color={theme.colors.text} />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.85}>
+          <Ionicons name="close" size={20} color="#ffffff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Resolve Incident</Text>
+        <Text style={styles.headerTitle}>INCIDENT FIELD RESOLUTION</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Incident Summary */}
+        {/* Incident Summary Card */}
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryIcon}>{EVENT_ICONS[incident.event?.type] || '🚨'}</Text>
-          <View>
+          <View style={styles.iconBox}>
+            <Ionicons
+              name={(EVENT_ICONS[incident.event?.type] || 'warning-outline') as any}
+              size={22}
+              color="#ffffff"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.summaryType}>
               {EVENT_LABELS[incident.event?.type] || incident.event?.type?.replace(/_/g, ' ')}
             </Text>
-            <Text style={styles.summaryAddress} numberOfLines={1}>{incident.event?.address}</Text>
+            <Text style={styles.summaryAddress} numberOfLines={1}>{incident.event?.address || 'Tactical Sector'}</Text>
           </View>
         </View>
 
-        {/* Resolution Notes */}
-        <Text style={styles.label}>Resolution Notes *</Text>
+        {/* Resolution Notes Input */}
+        <Text style={styles.label}>Field Action Report *</Text>
         <TextInput
           style={styles.textArea}
           value={description}
           onChangeText={setDescription}
-          placeholder="Describe what happened and how the incident was resolved..."
-          placeholderTextColor={theme.colors.textMuted}
+          placeholder="Enter on-site findings, tactical intervention summary, and resolution..."
+          placeholderTextColor="#525252"
           multiline
           numberOfLines={4}
           textAlignVertical="top"
         />
 
-        {/* Evidence Notes */}
-        <Text style={styles.label}>Evidence Notes</Text>
+        {/* Evidence Notes Input */}
+        <Text style={styles.label}>Witness & Evidence Observations</Text>
         <TextInput
           style={styles.textArea}
           value={evidenceNotes}
           onChangeText={setEvidenceNotes}
-          placeholder="Any evidence collected, witness statements, etc."
-          placeholderTextColor={theme.colors.textMuted}
+          placeholder="Optional witness testimonies, physical evidence serials..."
+          placeholderTextColor="#525252"
           multiline
           numberOfLines={3}
           textAlignVertical="top"
         />
 
-        {/* Photo Evidence */}
-        <Text style={styles.label}>Photo Evidence</Text>
+        {/* Photo Upload Buttons */}
+        <Text style={styles.label}>Photographic Evidence Capture</Text>
         <View style={styles.photoRow}>
-          <TouchableOpacity onPress={takePhoto} style={styles.photoBtn}>
-            <Ionicons name="camera" size={24} color={theme.colors.primary} />
+          <TouchableOpacity onPress={takePhoto} activeOpacity={0.85} style={styles.photoBtn}>
+            <Ionicons name="camera-outline" size={22} color="#ffffff" />
             <Text style={styles.photoBtnText}>Camera</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={pickImage} style={styles.photoBtn}>
-            <Ionicons name="images" size={24} color={theme.colors.primary} />
+          <TouchableOpacity onPress={pickImage} activeOpacity={0.85} style={styles.photoBtn}>
+            <Ionicons name="images-outline" size={22} color="#ffffff" />
             <Text style={styles.photoBtnText}>Gallery</Text>
           </TouchableOpacity>
         </View>
@@ -129,30 +132,28 @@ export default function ResolveScreen({ route, navigation }: any) {
                   onPress={() => setImages(prev => prev.filter((_, idx) => idx !== i))}
                   style={styles.removeImage}
                 >
-                  <Ionicons name="close-circle" size={20} color={theme.colors.danger} />
+                  <Ionicons name="close-circle" size={18} color="#ef4444" />
                 </TouchableOpacity>
                 <View style={styles.imagePlaceholder}>
-                  <Ionicons name="image" size={24} color={theme.colors.textMuted} />
-                  <Text style={styles.imageNumber}>{i + 1}</Text>
+                  <Ionicons name="image-outline" size={20} color="#737373" />
+                  <Text style={styles.imageNumber}>Ev. #{i + 1}</Text>
                 </View>
               </View>
             ))}
           </View>
         )}
 
-        {/* Submit */}
+        {/* Submit Action */}
         <TouchableOpacity
           onPress={() => resolveMut.mutate()}
           disabled={resolveMut.isPending}
-          activeOpacity={0.8}
-          style={{ marginTop: 24 }}
+          activeOpacity={0.85}
+          style={styles.submitBtn}
         >
-          <LinearGradient colors={[theme.colors.success, '#00C853']} style={styles.submitBtn}>
-            <Ionicons name="checkmark-circle" size={22} color="#fff" />
-            <Text style={styles.submitBtnText}>
-              {resolveMut.isPending ? 'Submitting...' : 'Resolve Incident'}
-            </Text>
-          </LinearGradient>
+          <Ionicons name="checkmark-circle-outline" size={20} color="#000000" />
+          <Text style={styles.submitBtnText}>
+            {resolveMut.isPending ? 'Transmitting Field Log...' : 'Submit Resolution & Close Alert'}
+          </Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -162,25 +163,89 @@ export default function ResolveScreen({ route, navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: theme.colors.elevated, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: theme.fontSize.lg, fontWeight: '700', color: theme.colors.text },
+  container: { flex: 1, backgroundColor: '#050505' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#0a0a0a',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: { fontSize: 11, fontWeight: '800', color: '#737373', letterSpacing: 1.5 },
   scroll: { padding: 20 },
-  summaryCard: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24, borderWidth: 1, borderColor: theme.colors.border },
-  summaryIcon: { fontSize: 36 },
-  summaryType: { fontSize: theme.fontSize.md, fontWeight: '700', color: theme.colors.text },
-  summaryAddress: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 2, maxWidth: 250 },
-  label: { fontSize: theme.fontSize.sm, fontWeight: '600', color: theme.colors.textSecondary, marginBottom: 8, marginTop: 16 },
-  textArea: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 16, fontSize: theme.fontSize.md, color: theme.colors.text, borderWidth: 1, borderColor: theme.colors.border, minHeight: 100 },
-  photoRow: { flexDirection: 'row', gap: 12 },
-  photoBtn: { flex: 1, backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.border, borderStyle: 'dashed' },
-  photoBtnText: { fontSize: theme.fontSize.sm, color: theme.colors.primary, marginTop: 8, fontWeight: '600' },
+  summaryCard: {
+    backgroundColor: '#0a0a0a',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  iconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#171717',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryType: { fontSize: 15, fontWeight: '700', color: '#ffffff' },
+  summaryAddress: { fontSize: 12, color: '#737373', marginTop: 2 },
+  label: { fontSize: 11, fontWeight: '700', color: '#737373', marginBottom: 8, marginTop: 16, textTransform: 'uppercase', letterSpacing: 1 },
+  textArea: {
+    backgroundColor: '#0a0a0a',
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
+    color: '#ffffff',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    minHeight: 90,
+  },
+  photoRow: { flexDirection: 'row', gap: 10 },
+  photoBtn: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 14,
+    padding: 18,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderStyle: 'dashed',
+  },
+  photoBtnText: { fontSize: 13, color: '#ffffff', marginTop: 6, fontWeight: '600' },
   imageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
-  imageThumb: { width: 72, height: 72, borderRadius: theme.radius.md, overflow: 'hidden', position: 'relative' },
-  removeImage: { position: 'absolute', top: -2, right: -2, zIndex: 1 },
-  imagePlaceholder: { width: '100%', height: '100%', backgroundColor: theme.colors.elevated, alignItems: 'center', justifyContent: 'center' },
-  imageNumber: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 2 },
-  submitBtn: { borderRadius: theme.radius.lg, paddingVertical: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  submitBtnText: { color: '#fff', fontSize: theme.fontSize.lg, fontWeight: '800' },
+  imageThumb: { width: 72, height: 72, borderRadius: 10, overflow: 'hidden', position: 'relative' },
+  removeImage: { position: 'absolute', top: 2, right: 2, zIndex: 1 },
+  imagePlaceholder: { width: '100%', height: '100%', backgroundColor: '#171717', alignItems: 'center', justifyContent: 'center' },
+  imageNumber: { fontSize: 9, color: '#737373', marginTop: 2 },
+  submitBtn: {
+    borderRadius: 14,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#ffffff',
+    marginTop: 28,
+  },
+  submitBtnText: { color: '#000000', fontSize: 15, fontWeight: '700' },
 });

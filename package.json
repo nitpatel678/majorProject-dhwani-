@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "description": "DhwaniAI - AI-powered Smart Acoustic Public Safety Monitoring System",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "dev:backend": "cd apps/backend && npm run dev",
     "dev:dashboard": "cd apps/dashboard && npm run dev",

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { Lock, Mail, ArrowRight, Loader2, Fingerprint } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -32,76 +33,93 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-bg gradient-mesh flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated background orbs */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{ x: [0, 100, 0], y: [0, -50, 0], scale: [1, 1.2, 1] }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{ x: [0, -80, 0], y: [0, 60, 0], scale: [1, 0.8, 1] }}
-          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/8 rounded-full blur-3xl"
-        />
-        <motion.div
-          animate={{ x: [0, 50, 0], y: [0, -80, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
-          className="absolute top-1/2 right-1/3 w-64 h-64 bg-danger/5 rounded-full blur-3xl"
-        />
-      </div>
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background grid */}
+      <div
+        className="absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundSize: '60px 60px',
+        }}
+      />
+
+      {/* Subtle radial glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/[0.02] rounded-full blur-[120px]" />
 
       <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-md relative z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-[400px] relative z-10"
       >
         {/* Logo */}
         <div className="text-center mb-8">
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-primary via-primary-light to-accent flex items-center justify-center shadow-glow"
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ delay: 0.1, type: 'spring', stiffness: 200, damping: 20 }}
+            className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-white flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.1)]"
           >
-            <span className="text-3xl font-black text-white font-display">D</span>
+            <Fingerprint size={28} className="text-black" />
           </motion.div>
-          <h1 className="text-3xl font-bold font-display">
-            Dhwani<span className="text-gradient">AI</span>
-          </h1>
-          <p className="text-text-secondary text-sm mt-1">Smart Acoustic Public Safety Monitoring</p>
+          <motion.h1
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-2xl font-bold font-display text-white tracking-tight"
+          >
+            DhwaniAI
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-surface-500 text-sm mt-1"
+          >
+            Acoustic Public Safety Monitoring
+          </motion.p>
         </div>
 
         {/* Login Card */}
-        <div className="glass-card p-8">
-          <h2 className="text-xl font-semibold mb-1">Sign In</h2>
-          <p className="text-text-muted text-sm mb-6">Access the command center</p>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="card p-7"
+        >
+          <h2 className="text-lg font-semibold text-white mb-0.5">Sign In</h2>
+          <p className="text-surface-500 text-sm mb-6">Access the command center</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm text-text-secondary mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="glass-input"
-                placeholder="admin@dhwaniai.com"
-                required
-              />
+              <label className="block text-xs text-surface-400 mb-2 font-medium">Email</label>
+              <div className="relative">
+                <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-600" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="input pl-10"
+                  placeholder="admin@dhwaniai.com"
+                  required
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm text-text-secondary mb-2">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="glass-input"
-                placeholder="••••••••"
-                required
-              />
+              <label className="block text-xs text-surface-400 mb-2 font-medium">Password</label>
+              <div className="relative">
+                <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-600" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="input pl-10"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
             </div>
 
             <motion.button
@@ -109,33 +127,35 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
               disabled={loading}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
-              className="w-full btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50"
             >
               {loading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                  className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full"
-                />
+                <Loader2 size={18} className="animate-spin" />
               ) : (
                 <>
-                  <span>Sign In</span>
-                  <span>→</span>
+                  Sign In
+                  <ArrowRight size={16} />
                 </>
               )}
             </motion.button>
           </form>
 
-          <div className="mt-6 p-3 rounded-xl bg-bg-elevated/50 border border-border">
-            <p className="text-[11px] text-text-muted text-center">
-              Demo: <span className="text-text-secondary font-mono">admin@dhwaniai.com</span> / <span className="text-text-secondary font-mono">admin123</span>
+          <div className="mt-5 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+            <p className="text-[11px] text-surface-500 text-center">
+              Demo: <span className="text-surface-300 font-mono">admin@dhwaniai.com</span> /{' '}
+              <span className="text-surface-300 font-mono">admin123</span>
             </p>
           </div>
-        </div>
+        </motion.div>
 
-        <p className="text-center text-text-muted text-xs mt-6">
-          DhwaniAI © {new Date().getFullYear()} · AI-Powered Safety
-        </p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center text-surface-700 text-xs mt-6"
+        >
+          DhwaniAI © {new Date().getFullYear()}
+        </motion.p>
       </motion.div>
     </div>
   );

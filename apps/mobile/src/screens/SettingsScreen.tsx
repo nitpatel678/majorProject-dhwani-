@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { theme } from '../theme';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -13,7 +11,7 @@ export default function SettingsScreen() {
   const [locationEnabled, setLocationEnabled] = useState(true);
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+    Alert.alert('Terminate Session', 'Are you sure you want to sign out of active dispatch?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: logout },
     ]);
@@ -22,8 +20,8 @@ export default function SettingsScreen() {
   const SettingItem = ({ icon, label, value, onToggle, showArrow }: { icon: string; label: string; value?: boolean; onToggle?: (v: boolean) => void; showArrow?: boolean }) => (
     <View style={styles.settingItem}>
       <View style={styles.settingLeft}>
-        <View style={styles.settingIcon}>
-          <Ionicons name={icon as any} size={20} color={theme.colors.primaryLight} />
+        <View style={styles.settingIconBox}>
+          <Ionicons name={icon as any} size={18} color="#a3a3a3" />
         </View>
         <Text style={styles.settingLabel}>{label}</Text>
       </View>
@@ -31,29 +29,27 @@ export default function SettingsScreen() {
         <Switch
           value={value}
           onValueChange={onToggle}
-          trackColor={{ false: theme.colors.elevated, true: theme.colors.primary + '60' }}
-          thumbColor={value ? theme.colors.primary : theme.colors.textMuted}
+          trackColor={{ false: '#171717', true: '#ffffff' }}
+          thumbColor={value ? '#000000' : '#525252'}
         />
       ) : showArrow ? (
-        <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+        <Ionicons name="chevron-forward" size={16} color="#737373" />
       ) : null}
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#0A0A0F', '#12121A']} style={StyleSheet.absoluteFill} />
-      
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Settings</Text>
+        <Text style={styles.title}>System Settings</Text>
 
-        {/* Account */}
-        <Text style={styles.sectionTitle}>Account</Text>
+        {/* Account Header */}
+        <Text style={styles.sectionTitle}>Active Responder Account</Text>
         <View style={styles.card}>
           <View style={styles.accountRow}>
-            <LinearGradient colors={[theme.colors.primary, theme.colors.accent]} style={styles.accountAvatar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+            <View style={styles.accountAvatar}>
               <Text style={styles.accountAvatarText}>{(user?.name || 'R').charAt(0)}</Text>
-            </LinearGradient>
+            </View>
             <View>
               <Text style={styles.accountName}>{user?.name}</Text>
               <Text style={styles.accountEmail}>{user?.email}</Text>
@@ -62,46 +58,37 @@ export default function SettingsScreen() {
         </View>
 
         {/* Notifications */}
-        <Text style={styles.sectionTitle}>Notifications</Text>
+        <Text style={styles.sectionTitle}>Field Dispatch Alerts</Text>
         <View style={styles.card}>
-          <SettingItem icon="notifications" label="Push Notifications" value={pushEnabled} onToggle={setPushEnabled} />
+          <SettingItem icon="notifications-outline" label="Push Dispatch Notifications" value={pushEnabled} onToggle={setPushEnabled} />
           <View style={styles.divider} />
-          <SettingItem icon="volume-high" label="Alert Sounds" value={soundEnabled} onToggle={setSoundEnabled} />
+          <SettingItem icon="volume-high-outline" label="Acoustic Emergency Siren" value={soundEnabled} onToggle={setSoundEnabled} />
           <View style={styles.divider} />
-          <SettingItem icon="phone-portrait" label="Vibration" value={vibrationEnabled} onToggle={setVibrationEnabled} />
+          <SettingItem icon="hardware-chip-outline" label="Haptic Tactile Pulse" value={vibrationEnabled} onToggle={setVibrationEnabled} />
         </View>
 
         {/* Privacy */}
-        <Text style={styles.sectionTitle}>Privacy</Text>
+        <Text style={styles.sectionTitle}>Tactical Location Privacy</Text>
         <View style={styles.card}>
-          <SettingItem icon="location" label="Location Sharing" value={locationEnabled} onToggle={setLocationEnabled} />
-        </View>
-
-        {/* About */}
-        <Text style={styles.sectionTitle}>About</Text>
-        <View style={styles.card}>
-          <SettingItem icon="information-circle" label="App Version" showArrow />
-          <View style={styles.divider} />
-          <SettingItem icon="shield-checkmark" label="Privacy Policy" showArrow />
-          <View style={styles.divider} />
-          <SettingItem icon="document-text" label="Terms of Service" showArrow />
+          <SettingItem icon="location-outline" label="Live GPS Coordinate Broadcast" value={locationEnabled} onToggle={setLocationEnabled} />
         </View>
 
         {/* App Info */}
         <View style={styles.appInfo}>
+          <Image source={require('../../assets/logo.png')} style={styles.appLogo} resizeMode="contain" />
           <Text style={styles.appInfoTitle}>
-            Dhwani<Text style={{ color: theme.colors.primary }}>AI</Text> Responder
+            Dhwani<Text style={{ color: '#a3a3a3' }}>AI</Text> Responder
           </Text>
-          <Text style={styles.appInfoVersion}>Version 1.0.0 · Build 1</Text>
+          <Text style={styles.appInfoVersion}>Version 1.0.0 • Build 2026.1</Text>
           <Text style={styles.appInfoCopy}>
-            AI-Powered Acoustic Safety · © {new Date().getFullYear()}
+            Encrypted Public Safety Acoustic Network
           </Text>
         </View>
 
         {/* Logout */}
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} activeOpacity={0.8}>
-          <Ionicons name="log-out-outline" size={20} color={theme.colors.danger} />
-          <Text style={styles.logoutText}>Sign Out</Text>
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn} activeOpacity={0.85}>
+          <Ionicons name="log-out-outline" size={18} color="#ef4444" />
+          <Text style={styles.logoutText}>Disconnect Node Session</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -111,25 +98,51 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  scroll: { padding: 20, paddingTop: 60 },
-  title: { fontSize: theme.fontSize.xxl, fontWeight: '800', color: theme.colors.text, marginBottom: 24 },
-  sectionTitle: { fontSize: theme.fontSize.xs, fontWeight: '700', color: theme.colors.textMuted, marginBottom: 8, marginTop: 20, textTransform: 'uppercase', letterSpacing: 1 },
-  card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.border, overflow: 'hidden' },
+  container: { flex: 1, backgroundColor: '#050505' },
+  scroll: { padding: 20, paddingTop: 56 },
+  title: { fontSize: 24, fontWeight: '800', color: '#ffffff', letterSpacing: -0.5, marginBottom: 20 },
+  sectionTitle: { fontSize: 11, fontWeight: '700', color: '#737373', marginBottom: 8, marginTop: 16, textTransform: 'uppercase', letterSpacing: 1.5 },
+  card: {
+    backgroundColor: '#0a0a0a',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+  },
   accountRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  accountAvatar: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  accountAvatarText: { fontSize: 18, fontWeight: '900', color: '#fff' },
-  accountName: { fontSize: theme.fontSize.md, fontWeight: '700', color: theme.colors.text },
-  accountEmail: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 2 },
+  accountAvatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#171717', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)', alignItems: 'center', justifyContent: 'center' },
+  accountAvatarText: { fontSize: 18, fontWeight: '800', color: '#ffffff' },
+  accountName: { fontSize: 15, fontWeight: '700', color: '#ffffff' },
+  accountEmail: { fontSize: 12, color: '#737373', marginTop: 2 },
   settingItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
   settingLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  settingIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: `${theme.colors.primary}15`, alignItems: 'center', justifyContent: 'center' },
-  settingLabel: { fontSize: theme.fontSize.sm, color: theme.colors.text, fontWeight: '500' },
-  divider: { height: 1, backgroundColor: theme.colors.border, marginHorizontal: 16 },
-  appInfo: { alignItems: 'center', paddingVertical: 24 },
-  appInfoTitle: { fontSize: theme.fontSize.lg, fontWeight: '800', color: theme.colors.text },
-  appInfoVersion: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 4 },
-  appInfoCopy: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 2 },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, backgroundColor: theme.colors.surface, borderRadius: theme.radius.lg, borderWidth: 1, borderColor: theme.colors.danger + '30' },
-  logoutText: { color: theme.colors.danger, fontSize: theme.fontSize.md, fontWeight: '700' },
+  settingIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#171717',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingLabel: { fontSize: 14, color: '#ffffff', fontWeight: '500' },
+  divider: { height: 1, backgroundColor: 'rgba(255, 255, 255, 0.06)', marginHorizontal: 16 },
+  appInfo: { alignItems: 'center', paddingVertical: 28 },
+  appLogo: { width: 36, height: 36, marginBottom: 8 },
+  appInfoTitle: { fontSize: 16, fontWeight: '800', color: '#ffffff' },
+  appInfoVersion: { fontSize: 11, color: '#737373', marginTop: 4 },
+  appInfoCopy: { fontSize: 10, color: '#525252', marginTop: 2 },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 15,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  logoutText: { color: '#ef4444', fontSize: 14, fontWeight: '700' },
 });

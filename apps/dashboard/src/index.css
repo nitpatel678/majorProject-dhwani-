@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================================
+   DhwaniAI — Monochrome Design System
+   Premium black & white theme inspired by high-end Dribbble dashboards
+   ============================================================================ */
+
 @layer base {
   * {
     margin: 0;
@@ -11,157 +16,234 @@
 
   html {
     scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    font-family: 'Outfit', system-ui, sans-serif;
-    background-color: #0A0A0F;
-    color: #F0F0F5;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #0a0a0a;
+    color: #fafafa;
     overflow-x: hidden;
+    letter-spacing: -0.01em;
   }
 
   ::selection {
-    background-color: rgba(108, 92, 231, 0.4);
+    background-color: rgba(255, 255, 255, 0.15);
     color: #fff;
   }
 
-  /* Custom scrollbar */
+  /* Refined scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 10px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-bg-surface/70 backdrop-blur-xl border border-border rounded-2xl;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  /* ---------------------------------------------------------------------------
+     Cards
+     --------------------------------------------------------------------------- */
+  .card {
+    @apply bg-[#0a0a0a] border border-white/[0.06] rounded-2xl;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 1px 2px rgba(0,0,0,0.4);
   }
 
-  .glass-card-hover {
-    @apply glass-card transition-all duration-300;
+  .card-hover {
+    @apply bg-[#0a0a0a] border border-white/[0.06] rounded-2xl transition-all duration-300 ease-out;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 1px 2px rgba(0,0,0,0.4);
   }
-  .glass-card-hover:hover {
-    @apply bg-bg-elevated/80 border-border-hover;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-    transform: translateY(-2px);
-  }
-
-  .glass-input {
-    @apply w-full bg-bg-elevated/50 border border-border rounded-xl px-4 py-3 text-text-primary placeholder-text-muted outline-none transition-all duration-200;
-  }
-  .glass-input:focus {
-    @apply border-primary/50 ring-2 ring-primary/20;
+  .card-hover:hover {
+    @apply border-white/[0.1];
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.04), 0 8px 24px rgba(0,0,0,0.5);
+    transform: translateY(-1px);
   }
 
+  .card-interactive {
+    @apply bg-[#0a0a0a] border border-white/[0.06] rounded-2xl cursor-pointer transition-all duration-200;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .card-interactive:hover {
+    @apply bg-[#171717] border-white/[0.1];
+  }
+
+  /* ---------------------------------------------------------------------------
+     Inputs
+     --------------------------------------------------------------------------- */
+  .input {
+    @apply w-full bg-[#171717] border border-white/[0.06] rounded-xl px-4 py-3 text-white placeholder-[#737373] outline-none transition-all duration-200 text-sm;
+  }
+  .input:focus {
+    @apply border-white/[0.2] ring-1 ring-white/[0.05];
+  }
+
+  /* ---------------------------------------------------------------------------
+     Buttons
+     --------------------------------------------------------------------------- */
   .btn-primary {
-    @apply px-6 py-3 bg-gradient-to-r from-primary to-primary-light text-white font-medium rounded-xl transition-all duration-200 hover:shadow-glow active:scale-[0.98];
+    @apply px-5 py-2.5 bg-white text-black font-medium rounded-xl text-sm transition-all duration-200;
+  }
+  .btn-primary:hover {
+    @apply bg-[#e5e5e5];
+    box-shadow: 0 0 20px rgba(255,255,255,0.08);
+  }
+  .btn-primary:active {
+    @apply scale-[0.98];
   }
 
   .btn-secondary {
-    @apply px-6 py-3 bg-bg-elevated border border-border text-text-primary font-medium rounded-xl transition-all duration-200 hover:bg-bg-hover hover:border-border-hover;
+    @apply px-5 py-2.5 bg-[#171717] border border-white/[0.06] text-white font-medium rounded-xl text-sm transition-all duration-200;
   }
-
-  .btn-danger {
-    @apply px-6 py-3 bg-danger/20 border border-danger/30 text-danger font-medium rounded-xl transition-all duration-200 hover:bg-danger/30;
+  .btn-secondary:hover {
+    @apply bg-[#262626] border-white/[0.1];
   }
 
   .btn-ghost {
-    @apply px-4 py-2 text-text-secondary font-medium rounded-xl transition-all duration-200 hover:bg-bg-elevated hover:text-text-primary;
+    @apply px-4 py-2 text-[#a3a3a3] font-medium rounded-xl text-sm transition-all duration-200;
+  }
+  .btn-ghost:hover {
+    @apply bg-white/[0.04] text-white;
   }
 
-  .stat-card {
-    @apply glass-card p-6 flex flex-col gap-2;
+  .btn-danger {
+    @apply px-5 py-2.5 bg-danger/10 border border-danger/20 text-danger font-medium rounded-xl text-sm transition-all duration-200;
+  }
+  .btn-danger:hover {
+    @apply bg-danger/20 border-danger/30;
   }
 
+  /* ---------------------------------------------------------------------------
+     Badges
+     --------------------------------------------------------------------------- */
   .badge {
-    @apply inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium;
   }
   .badge-danger {
-    @apply badge bg-danger/15 text-danger border border-danger/20;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-danger/10 text-danger border border-danger/20;
   }
   .badge-warning {
-    @apply badge bg-warning/15 text-warning border border-warning/20;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-warning/10 text-warning border border-warning/20;
   }
   .badge-success {
-    @apply badge bg-success/15 text-success border border-success/20;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-success/10 text-success border border-success/20;
   }
   .badge-info {
-    @apply badge bg-info/15 text-info border border-info/20;
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-info/10 text-info border border-info/20;
   }
-  .badge-primary {
-    @apply badge bg-primary/15 text-primary-light border border-primary/20;
+  .badge-neutral {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-white/[0.05] text-[#d4d4d4] border border-white/[0.06];
   }
 
+  /* ---------------------------------------------------------------------------
+     Sidebar
+     --------------------------------------------------------------------------- */
   .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-text-secondary font-medium transition-all duration-200 hover:bg-bg-elevated hover:text-text-primary;
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-[#737373] font-medium text-sm transition-all duration-200;
+  }
+  .sidebar-link:hover {
+    @apply text-[#e5e5e5] bg-white/[0.03];
   }
   .sidebar-link.active {
-    @apply bg-primary/10 text-primary-light border border-primary/20;
+    @apply text-white bg-white/[0.06];
   }
 
-  /* Gradient backgrounds */
-  .gradient-mesh {
-    background: 
-      radial-gradient(ellipse at 20% 50%, rgba(108, 92, 231, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, rgba(0, 217, 255, 0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 80%, rgba(255, 82, 82, 0.04) 0%, transparent 50%);
+  /* ---------------------------------------------------------------------------
+     Stat Cards
+     --------------------------------------------------------------------------- */
+  .stat-card {
+    @apply bg-[#0a0a0a] border border-white/[0.06] rounded-2xl p-5;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 1px 2px rgba(0,0,0,0.4);
   }
 
-  /* Pulse animation for critical alerts */
-  .pulse-danger {
-    animation: pulse-danger 2s infinite;
+  /* ---------------------------------------------------------------------------
+     Custom Scrollbar for lists
+     --------------------------------------------------------------------------- */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
   }
-  @keyframes pulse-danger {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.4); }
-    50% { box-shadow: 0 0 0 12px rgba(255, 82, 82, 0); }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
   }
-
-  .pulse-primary {
-    animation: pulse-primary 2s infinite;
-  }
-  @keyframes pulse-primary {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(108, 92, 231, 0.4); }
-    50% { box-shadow: 0 0 0 12px rgba(108, 92, 231, 0); }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
   }
 
-  /* Recharts customization */
+  /* ---------------------------------------------------------------------------
+     Skeleton loading shimmer
+     --------------------------------------------------------------------------- */
+  .skeleton {
+    @apply bg-[#171717] rounded-lg;
+    animation: shimmer 2s linear infinite;
+    background: linear-gradient(
+      90deg,
+      #171717 0%,
+      #262626 50%,
+      #171717 100%
+    );
+    background-size: 200% 100%;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* ---------------------------------------------------------------------------
+     Charts — Recharts theme override
+     --------------------------------------------------------------------------- */
   .recharts-cartesian-grid-horizontal line,
   .recharts-cartesian-grid-vertical line {
-    stroke: rgba(255, 255, 255, 0.04);
+    stroke: rgba(255, 255, 255, 0.03);
   }
 
-  /* Leaflet map dark theme */
+  /* ---------------------------------------------------------------------------
+     Leaflet Map dark theme
+     --------------------------------------------------------------------------- */
   .leaflet-container {
-    background: #0A0A0F;
+    background: #0a0a0a;
   }
   .leaflet-tile-pane {
     filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
   }
   .leaflet-control-zoom a {
-    background: #1A1A25 !important;
-    color: #F0F0F5 !important;
-    border-color: rgba(255,255,255,0.1) !important;
+    background: #171717 !important;
+    color: #fafafa !important;
+    border-color: rgba(255,255,255,0.06) !important;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Pulse animations for status indicators
+     --------------------------------------------------------------------------- */
+  .pulse-danger {
+    animation: pulse-ring 2s infinite;
+  }
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  }
+
+  .pulse-success {
+    animation: pulse-success-ring 2s infinite;
+  }
+  @keyframes pulse-success-ring {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
   }
 }
 
 @layer utilities {
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
-  }
-  .text-gradient-warm {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-danger to-warning;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-white to-[#a3a3a3];
   }
 }

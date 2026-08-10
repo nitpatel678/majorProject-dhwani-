@@ -4,7 +4,7 @@ import Header from './Header';
 
 export default function DashboardLayout() {
   return (
-    <div className="flex min-h-screen bg-bg gradient-mesh">
+    <div className="flex min-h-screen bg-surface-950">
       <Sidebar />
       <div className="flex-1 ml-[260px] flex flex-col">
         <Header />

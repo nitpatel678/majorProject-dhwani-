@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Change this to your backend URL
 // For local dev with Expo: use your machine's LAN IP (not localhost)
-const BASE_URL = 'http://192.168.1.100:5000/api';
+const BASE_URL = 'http://192.168.1.6:5000/api';
 
 const api = axios.create({
   baseURL: BASE_URL,
