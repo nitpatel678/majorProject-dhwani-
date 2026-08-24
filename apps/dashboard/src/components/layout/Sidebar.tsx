@@ -14,28 +14,28 @@ import {
 } from 'lucide-react';
 
 const mainNav = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/monitoring', label: 'Live Monitor', icon: Radio, live: true },
-  { path: '/devices', label: 'Devices', icon: Cpu },
-  { path: '/responders', label: 'Responders', icon: Shield },
-  { path: '/incidents', label: 'Incidents', icon: AlertTriangle },
-  { path: '/audio-test', label: 'AI Audio Lab', icon: Mic },
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/dashboard/monitoring', label: 'Live Monitor', icon: Radio, live: true },
+  { path: '/dashboard/devices', label: 'Devices', icon: Cpu },
+  { path: '/dashboard/responders', label: 'Responders', icon: Shield },
+  { path: '/dashboard/incidents', label: 'Incidents', icon: AlertTriangle },
+  { path: '/dashboard/audio-test', label: 'AI Audio Lab', icon: Mic },
 ];
 
 const insightNav = [
-  { path: '/map', label: 'Map View', icon: Map },
-  { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/dashboard/map', label: 'Map View', icon: Map },
+  { path: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function Sidebar() {
   const location = useLocation();
 
   const isActive = (path: string) =>
-    path === '/' ? location.pathname === '/' : location.pathname.startsWith(path);
+    path === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(path);
 
   const renderLink = (item: typeof mainNav[0] & { live?: boolean }) => (
-    <NavLink key={item.path} to={item.path} end={item.path === '/'}>
+    <NavLink key={item.path} to={item.path} end={item.path === '/dashboard'}>
       {() => {
         const active = isActive(item.path);
         const Icon = item.icon;
@@ -69,9 +69,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-6 py-5 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center">
-            <span className="text-black text-sm font-bold font-display">D</span>
-          </div>
+          <img src="/logo.png" alt="DhwaniAI" className="w-9 h-9 rounded-xl" />
           <div>
             <h1 className="text-[15px] font-semibold text-white tracking-tight font-display">
               DhwaniAI

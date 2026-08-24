@@ -24,7 +24,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       localStorage.setItem('dhwaniai_user', JSON.stringify(data.user));
       onLogin();
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/dashboard');
     } catch {
       toast.error('Invalid credentials');
     } finally {
@@ -59,9 +59,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ delay: 0.1, type: 'spring', stiffness: 200, damping: 20 }}
-            className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-white flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.1)]"
+            className="w-16 h-16 mx-auto mb-5 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.1)]"
           >
-            <Fingerprint size={28} className="text-black" />
+            <img src="/logo.png" alt="DhwaniAI" className="w-full h-full object-cover" />
           </motion.div>
           <motion.h1
             initial={{ opacity: 0 }}

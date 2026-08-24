@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import DashboardLayout from './components/layout/DashboardLayout';
+import LandingPage from './features/landing/LandingPage';
 import LoginPage from './features/auth/LoginPage';
 import DashboardPage from './features/dashboard/DashboardPage';
 import MonitoringPage from './features/monitoring/MonitoringPage';
@@ -39,8 +40,13 @@ export default function App() {
 
   return (
     <Routes>
+      {/* Landing page is the root */}
+      <Route index element={<LandingPage />} />
       <Route path="/login" element={<LoginPage onLogin={() => setIsAuth(true)} />} />
+      
+      {/* Command Center (protected dashboard) */}
       <Route
+        path="/dashboard"
         element={
           <ProtectedRoute>
             <DashboardLayout />
