@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "concurrently -k -n \"BACKEND,INFERENCE\" -c \"blue,green\" \"tsx watch src/index.ts\" \"python scripts/inference_server.py\"",
+    "dev:node": "tsx watch src/index.ts",
+    "inference": "python scripts/inference_server.py",
     "build": "tsc",
     "start": "node dist/index.js",
     "db:push": "prisma db push",
@@ -16,10 +18,12 @@
   "dependencies": {
     "@prisma/client": "^6.9.0",
     "@supabase/supabase-js": "^2.49.0",
+    "axios": "^1.20.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.0",
+    "form-data": "^4.0.6",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
@@ -33,6 +37,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.0",
+    "concurrently": "^10.0.5",
     "prisma": "^6.9.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"

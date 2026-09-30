@@ -12,3 +12,5 @@ coverage/
 *.h5
 *.keras
 uploads/
+__pycache__/
+*.pyc

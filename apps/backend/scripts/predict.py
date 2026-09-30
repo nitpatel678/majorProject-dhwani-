@@ -74,12 +74,23 @@ UPPER_EDGE_HZ = 8000.0       # Nyquist / 2 for 16kHz - covers most environmental
 # Rationale: weights reflect real-world danger severity for public safety
 THREAT_WEIGHTS = {
     "GUNSHOT_EXPLOSION": 1.0,  # Immediate lethal threat
-    "IMPACT_CRASH": 0.9,       # High injury potential
-    "GLASS_BREAK": 0.7,        # Property damage / forced entry indicator
-    "CROWD_PANIC": 0.7,        # Mass casualty risk
-    "SCREAM": 0.5,             # Distress signal - context-dependent
-    "SIREN": 0.3,              # Informational - emergency already responded
+    "IMPACT_CRASH": 0.90,      # High injury potential
+    "CROWD_PANIC": 0.75,       # Mass casualty risk
+    "GLASS_BREAK": 0.70,       # Property damage / forced entry indicator
+    "SCREAM": 0.65,            # Distress signal - context-dependent
+    "SIREN": 0.30,             # Informational - emergency already responded
     "NORMAL": 0.0,             # No threat
+}
+
+# Calibrated confidence thresholds per class to prevent false alarms on transient sounds
+CLASS_THRESHOLDS = {
+    "GUNSHOT_EXPLOSION": 0.70,  # Gunshot requires high certainty to avoid misidentifying sharp clanks
+    "IMPACT_CRASH": 0.55,       # Collision detection threshold
+    "SCREAM": 0.65,             # Screaming vocalization threshold (avoids shouting/whistles)
+    "GLASS_BREAK": 0.65,        # Glass shatter threshold
+    "CROWD_PANIC": 0.50,        # Crowd disturbance threshold
+    "SIREN": 0.55,              # Emergency siren threshold
+    "NORMAL": 0.30,             # Ambient sound threshold
 }
 
 # Co-occurrence rules: patterns that escalate threat
@@ -103,7 +114,7 @@ SITUATION_THRESHOLDS = {
 }
 
 # Confidence cutoff - predictions below this are treated as uncertain
-CONFIDENCE_CUTOFF = 0.3
+CONFIDENCE_CUTOFF = 0.40
 
 
 # =============================================================================
@@ -170,12 +181,14 @@ class AudioProcessor:
             
             start_time = start_sample / self.sample_rate
             end_time = min(end_sample / self.sample_rate, duration)
+            win_rms = float(np.sqrt(np.mean(window_audio**2)))
             
             windows.append({
                 'audio': window_audio,
                 'start': round(start_time, 2),
                 'end': round(end_time, 2),
                 'index': idx,
+                'rms': round(win_rms, 6),
             })
             
             start_sample += self.hop_samples
@@ -274,7 +287,8 @@ class InferenceEngine:
         else:
             self.model = tf.keras.models.load_model(model_path)
     
-    def predict(self, spectrogram: np.ndarray) -> Dict:
+    def predict(self, spectrogram: np.ndarray, win_rms: Optional[float] = None,
+                rms_floor: Optional[float] = None) -> Dict:
         """
         Run inference on a single spectrogram.
         
@@ -295,10 +309,24 @@ class InferenceEngine:
             output = self.model.predict(input_data, verbose=0)
             probabilities = output[0].tolist()
         
-        # Find predicted class
+        # Find raw predicted class
         max_idx = int(np.argmax(probabilities))
         predicted_class = CLASSES[max_idx]
         confidence = probabilities[max_idx]
+        normal_prob = probabilities[6]
+        
+        # Energy gate: silence or sub-noise-floor windows cannot be emergency events
+        if win_rms is not None and rms_floor is not None and win_rms < rms_floor:
+            predicted_class = 'NORMAL'
+            confidence = normal_prob
+        elif predicted_class != 'NORMAL':
+            # Check class-specific calibrated confidence threshold
+            thresh = CLASS_THRESHOLDS.get(predicted_class, 0.60)
+            if confidence < thresh:
+                # If confidence doesn't meet emergency threshold, fallback to NORMAL if ambient prob is non-trivial
+                if normal_prob >= 0.20:
+                    predicted_class = 'NORMAL'
+                    confidence = normal_prob
         
         return {
             'class': predicted_class,
@@ -335,6 +363,43 @@ class EventAggregator:
                 'probabilities': w['prediction']['probabilities'],
             })
         return timeline
+    
+    @staticmethod
+    def smooth_timeline(timeline: List[Dict]) -> List[Dict]:
+        """
+        Apply temporal smoothing and debouncing to suppress single-window
+        transient spikes in otherwise calm audio.
+        """
+        total = len(timeline)
+        if total <= 2:
+            for t in timeline:
+                t['is_sustained'] = False
+            return timeline
+        
+        smoothed = []
+        for i in range(total):
+            curr = dict(timeline[i])
+            c_cls = curr['class']
+            c_conf = curr['confidence']
+            
+            prev_cls = timeline[i-1]['class'] if i > 0 else 'NORMAL'
+            next_cls = timeline[i+1]['class'] if i < total - 1 else 'NORMAL'
+            
+            is_sustained = (c_cls == prev_cls or c_cls == next_cls)
+            curr['is_sustained'] = is_sustained
+            
+            # Debounce: if isolated dangerous event with moderate confidence surrounded by normal,
+            # smooth to normal
+            if c_cls not in ['NORMAL', 'SIREN']:
+                if not is_sustained and c_conf < 0.72:
+                    if prev_cls == 'NORMAL' and next_cls == 'NORMAL':
+                        curr['class'] = 'NORMAL'
+                        curr['confidence'] = curr['probabilities'][6]
+                        curr['is_sustained'] = False
+            
+            smoothed.append(curr)
+        
+        return smoothed
     
     @staticmethod
     def aggregate_events(timeline: List[Dict]) -> List[Dict]:
@@ -408,7 +473,7 @@ class ThreatAssessmentEngine:
     
     def compute(self, timeline: List[Dict], audio_duration: float) -> Dict:
         """
-        Compute threat score and contributing factors.
+        Compute threat score and contributing factors using proportion-aware scoring.
         
         Returns dict with:
             - score: int 0-100
@@ -418,45 +483,44 @@ class ThreatAssessmentEngine:
         if not timeline:
             return {'score': 0, 'factors': [], 'co_occurrences': []}
         
-        # 1. Base score from individual events
-        base_scores = []
-        for entry in timeline:
+        total_wins = len(timeline)
+        danger_windows = [w for w in timeline if w['class'] not in ['NORMAL', 'SIREN']]
+        sustained_danger = [w for w in danger_windows if w.get('is_sustained', False)]
+        normal_count = sum(1 for w in timeline if w['class'] == 'NORMAL')
+        normal_ratio = normal_count / total_wins
+        
+        # 1. Base score from individual dangerous events for UI factors
+        base_factors = []
+        for entry in danger_windows:
             weight = THREAT_WEIGHTS.get(entry['class'], 0.0)
             confidence = entry['confidence']
-            
-            # Only count events above confidence cutoff
-            if confidence < CONFIDENCE_CUTOFF:
-                continue
-            
-            # Temporal decay: events near the end (most recent) weighted more
-            # Using exponential decay from start of audio
-            if audio_duration > 0:
-                recency = entry['start'] / audio_duration  # 0=start, 1=end
-                temporal_weight = 0.5 + 0.5 * recency  # Range: [0.5, 1.0]
-            else:
-                temporal_weight = 1.0
-            
-            event_score = weight * confidence * temporal_weight
-            base_scores.append({
+            event_score = weight * confidence
+            base_factors.append({
                 'class': entry['class'],
                 'score': round(event_score, 3),
                 'time': entry['start'],
             })
+        base_factors = sorted(base_factors, key=lambda x: x['score'], reverse=True)
         
-        if not base_scores:
-            return {'score': 0, 'factors': [], 'co_occurrences': []}
+        if not danger_windows:
+            has_siren = any(w['class'] == 'SIREN' for w in timeline)
+            return {
+                'score': 10 if has_siren else 0,
+                'factors': [],
+                'co_occurrences': [],
+                'repetitionFactor': 1.0,
+                'coOccurrenceBoost': 1.0,
+            }
         
         # 2. Co-occurrence detection and boosting
         co_occurrences = []
         co_occurrence_boost = 1.0
         
-        dangerous_entries = [e for e in timeline if THREAT_WEIGHTS.get(e['class'], 0) > 0.3]
-        
         for rule_a, rule_b, time_window, boost in CO_OCCURRENCE_RULES:
-            for i, ea in enumerate(dangerous_entries):
+            for i, ea in enumerate(danger_windows):
                 if ea['class'] != rule_a:
                     continue
-                for eb in dangerous_entries[i+1:]:
+                for eb in danger_windows[i+1:]:
                     if eb['class'] != rule_b:
                         continue
                     time_diff = abs(eb['start'] - ea['start'])
@@ -468,30 +532,37 @@ class ThreatAssessmentEngine:
                         })
                         co_occurrence_boost = max(co_occurrence_boost, boost)
         
-        # 3. Repetition factor — repeated dangerous events amplify score
-        dangerous_count = sum(1 for s in base_scores if s['score'] > 0.1)
-        repetition_factor = min(1.0 + (dangerous_count - 1) * 0.1, 1.5) if dangerous_count > 1 else 1.0
+        # 3. Density Score (up to 30 pts)
+        density = len(danger_windows) / total_wins
+        density_score = min(density * 100 * 1.5, 30.0)
         
-        # 4. Calculate final score
-        # Use top-N contributing events to avoid dilution from many normal windows
-        top_scores = sorted(base_scores, key=lambda x: x['score'], reverse=True)
-        # Take top 5 contributing events
-        contributing = top_scores[:5]
-        raw_score = sum(s['score'] for s in contributing)
+        # 4. Peak Severity Score (up to 40 pts)
+        peak_weight = max(THREAT_WEIGHTS.get(w['class'], 0) * w['confidence'] for w in danger_windows)
+        peak_score = peak_weight * 40.0
         
-        # Normalize to 0-100 scale
-        # Max possible: 5 events × 1.0 weight × 1.0 confidence × 1.0 temporal = 5.0
-        normalized = (raw_score / 3.0) * 100.0  # Calibrated so realistic scenarios hit 70-90
+        # 5. Sustained Threat Score (up to 30 pts)
+        sustained_score = (len(sustained_danger) / max(total_wins * 0.25, 1)) * 30.0
+        sustained_score = min(sustained_score, 30.0)
         
-        # Apply multipliers
-        final_score = normalized * co_occurrence_boost * repetition_factor
-        final_score = int(min(max(final_score, 0), 100))
+        raw_score = (density_score + peak_score + sustained_score) * co_occurrence_boost
+        
+        # 6. Ambient Calmness Damping
+        has_sustained_lethal = any(w['class'] in ['GUNSHOT_EXPLOSION', 'IMPACT_CRASH'] for w in sustained_danger)
+        
+        if normal_ratio >= 0.85 and len(sustained_danger) == 0:
+            raw_score = raw_score * 0.30
+        elif normal_ratio >= 0.80 and len(sustained_danger) <= 1:
+            raw_score = raw_score * 0.50
+        elif has_sustained_lethal and raw_score < 55:
+            raw_score = max(raw_score, 55.0)
+        
+        final_score = int(min(max(raw_score, 0), 100))
         
         return {
             'score': final_score,
-            'factors': contributing[:5],
-            'co_occurrences': co_occurrences,
-            'repetitionFactor': round(repetition_factor, 2),
+            'factors': base_factors[:5],
+            'co_occurrences': co_occurrences[:3],
+            'repetitionFactor': round(1.0 + (len(sustained_danger) * 0.05), 2),
             'coOccurrenceBoost': round(co_occurrence_boost, 2),
         }
 
@@ -555,74 +626,62 @@ class DecisionEngine:
         """Generate a natural language explanation of the analysis."""
         score = threat_data['score']
         
-        # Get unique dangerous events in order of appearance
         dangerous_classes = {"SCREAM", "GLASS_BREAK", "IMPACT_CRASH", "GUNSHOT_EXPLOSION", "CROWD_PANIC"}
-        detected_events = []
-        seen = set()
+        danger_entries = [e for e in timeline if e['class'] in dangerous_classes]
         
-        for entry in timeline:
-            if entry['class'] in dangerous_classes and entry['confidence'] >= CONFIDENCE_CUTOFF:
-                if entry['class'] not in seen:
-                    detected_events.append({
-                        'class': entry['class'],
-                        'label': CLASS_LABELS[entry['class']],
-                        'time': entry['start'],
-                        'confidence': entry['confidence'],
-                    })
-                    seen.add(entry['class'])
-        
-        if not detected_events:
-            # Check for siren
-            has_siren = any(e['class'] == 'SIREN' and e['confidence'] >= CONFIDENCE_CUTOFF for e in timeline)
+        if not danger_entries or level == 'NORMAL':
+            has_siren = any(e['class'] == 'SIREN' for e in timeline)
             if has_siren:
                 return (
-                    f"Emergency siren detected in {audio_duration}s audio. "
-                    f"No distress events identified. Threat Score: {score}/100. "
-                    f"Situation appears under control with emergency services active."
+                    f"Emergency vehicle siren detected in {audio_duration:.1f}s audio. "
+                    f"No active distress or acoustic disturbance identified. "
+                    f"Threat Score: {score}/100. Routine monitoring active."
                 )
             return (
-                f"No dangerous acoustic events detected in {audio_duration}s of audio. "
-                f"All windows classified as normal ambient sound. "
+                f"Environmental audio analysis across {audio_duration:.1f}s indicates standard ambient acoustic levels. "
+                f"No verified emergency or distress events detected. "
                 f"Threat Score: {score}/100. No action required."
             )
         
-        # Build event sequence description
+        # Get unique dangerous events in order of appearance
+        detected_events = []
+        seen = set()
+        for entry in danger_entries:
+            if entry['class'] not in seen:
+                detected_events.append({
+                    'class': entry['class'],
+                    'label': CLASS_LABELS[entry['class']],
+                    'time': entry['start'],
+                    'confidence': entry['confidence'],
+                    'is_sustained': entry.get('is_sustained', False),
+                })
+                seen.add(entry['class'])
+        
         parts = []
         for i, evt in enumerate(detected_events):
             time_str = f"{evt['time']:.1f}s"
             conf_str = f"{evt['confidence']*100:.0f}%"
+            sustained_str = "sustained " if evt['is_sustained'] else ""
             if i == 0:
-                parts.append(f"{evt['label'].capitalize()} detected at {time_str} ({conf_str} confidence)")
+                parts.append(f"{sustained_str.capitalize()}{evt['label']} detected at {time_str} ({conf_str} confidence)")
             else:
-                parts.append(f"followed by {evt['label']} at {time_str} ({conf_str})")
+                parts.append(f"followed by {sustained_str}{evt['label']} at {time_str} ({conf_str})")
         
         event_desc = ", ".join(parts) + "."
         
-        # Co-occurrence summary
         co_desc = ""
         if threat_data.get('co_occurrences'):
-            patterns = [co['pattern'] for co in threat_data['co_occurrences'][:3]]
-            co_desc = f" Correlated patterns: {'; '.join(patterns)}."
+            patterns = [co['pattern'] for co in threat_data['co_occurrences'][:2]]
+            co_desc = f" Correlated emergency patterns identified: {'; '.join(patterns)}."
         
-        # Time span of dangerous events
-        if len(detected_events) > 1:
-            span = detected_events[-1]['time'] - detected_events[0]['time']
-            span_desc = f" Multiple distress events within a {span:.1f}-second window."
-        else:
-            span_desc = ""
-        
-        # Level-specific conclusion
         conclusions = {
-            'CRITICAL': "Immediate emergency response recommended.",
-            'WARNING': "Elevated threat detected. Monitoring recommended.",
-            'SUSPICIOUS': "Anomalous activity detected. Further monitoring advised.",
-            'NORMAL': "No immediate threat identified.",
+            'CRITICAL': "Critical public safety alert. Immediate dispatch and responder mobilization recommended.",
+            'WARNING': "Elevated distress levels verified. Alerting patrol units for area verification.",
+            'SUSPICIOUS': "Anomalous acoustic activity detected. Area flagged for enhanced telemetry monitoring.",
+            'NORMAL': "No active threat identified.",
         }
         
-        return (
-            f"{event_desc}{span_desc}{co_desc} "
-            f"Threat Score: {score}/100. {conclusions[level]}"
-        )
+        return f"{event_desc}{co_desc} Threat Score: {score}/100. {conclusions.get(level, '')}"
     
     def _get_recommendations(self, level: str, threat_data: Dict) -> List[str]:
         """Get action recommendations based on situation level."""
@@ -684,10 +743,14 @@ def run_pipeline(audio_path: str, model_path: str,
     # Stage 3: Inference
     engine = InferenceEngine(model_path)
     
+    # Calculate overall RMS energy to establish dynamic ambient floor
+    overall_rms = float(np.sqrt(np.mean(audio**2))) if len(audio) > 0 else 0.0
+    rms_floor = max(0.008, 0.20 * overall_rms)
+    
     window_results = []
     for window in windows:
         spectrogram = extractor.extract(window['audio'])
-        prediction = engine.predict(spectrogram)
+        prediction = engine.predict(spectrogram, win_rms=window.get('rms', 0.0), rms_floor=rms_floor)
         window_results.append({
             'start': window['start'],
             'end': window['end'],
@@ -695,9 +758,10 @@ def run_pipeline(audio_path: str, model_path: str,
             'prediction': prediction,
         })
     
-    # Stage 4: Event aggregation
+    # Stage 4: Event aggregation & temporal smoothing
     aggregator = EventAggregator()
-    timeline = aggregator.build_timeline(window_results)
+    raw_timeline = aggregator.build_timeline(window_results)
+    timeline = aggregator.smooth_timeline(raw_timeline)
     aggregated = aggregator.aggregate_events(timeline)
     dangerous_count = aggregator.count_dangerous_events(timeline)
     

@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { config } from '../config';
 import path from 'path';
 import fs from 'fs';
+import { spawnSync } from 'child_process';
 
 const MODEL_CLASSES = config.model.classes;
 
@@ -22,9 +23,14 @@ const MODEL_CLASSES = config.model.classes;
  * - Throws descriptive errors instead of silently falling back to mock data
  */
 function runPythonPipeline(filePath: string, timeoutMs: number = 120000): any {
-  const { spawnSync } = require('child_process');
   const scriptPath = path.join(__dirname, '..', '..', 'scripts', 'predict.py');
-  const modelPath = path.resolve(config.model.path);
+  const resolvedFromCwd = path.resolve(config.model.path);
+  const resolvedFromDir = path.join(__dirname, '..', '..', config.model.path.replace(/^\.\//, ''));
+  const modelPath = path.isAbsolute(config.model.path)
+    ? config.model.path
+    : fs.existsSync(resolvedFromCwd)
+      ? resolvedFromCwd
+      : resolvedFromDir;
 
   const result = spawnSync('python', [scriptPath, filePath, modelPath], {
     encoding: 'utf-8',
@@ -221,5 +227,111 @@ export const uploadAudioFile = async (req: AuthRequest, res: Response): Promise<
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Upload failed' });
+  }
+};
+
+// =============================================================================
+// Live Streaming Chunk Inference (In-Memory Microservice)
+// =============================================================================
+
+export const analyzeLiveChunk = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.file) {
+      res.status(400).json({ error: 'No audio chunk provided' });
+      return;
+    }
+
+    const filePath = req.file.path;
+    const sensitivity = req.query.sensitivity || '1.0';
+    const rmsFloor = req.query.rms_floor || '0.018';
+    const minSustained = req.query.min_sustained || '2';
+    const decayRate = req.query.decay_rate || '20';
+
+    try {
+      const fileBuffer = fs.readFileSync(filePath);
+      
+      const FormData = require('form-data');
+      const axios = require('axios');
+      
+      const formData = new FormData();
+      formData.append('audio', fileBuffer, {
+        filename: req.file.originalname || 'chunk.wav',
+        contentType: 'audio/wav',
+      });
+
+      const url = `http://127.0.0.1:5002/predict-chunk?sensitivity=${sensitivity}&rms_floor=${rmsFloor}&min_sustained=${minSustained}&decay_rate=${decayRate}`;
+      
+      const response = await axios.post(url, formData, {
+        headers: formData.getHeaders(),
+      });
+
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+      res.json(response.data);
+    } catch (err: any) {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      console.error('[LiveChunk] Inference error:', err.message);
+      res.status(500).json({ error: 'Live chunk analysis failed', detail: err.message });
+    }
+  } catch (error) {
+    console.error('[LiveChunk] Controller error:', error);
+    res.status(500).json({ error: 'Failed to process audio chunk' });
+  }
+};
+
+export const resetLiveState = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const response = await fetch('http://127.0.0.1:5002/reset', { method: 'POST' });
+    const data = await response.json();
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to reset state', detail: error.message });
+  }
+};
+
+export const syncMobileSettings = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const response = await fetch('http://127.0.0.1:5002/sync-mobile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to sync settings', detail: error.message });
+  }
+};
+
+export const buildMobileApk = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const projectDir = 'C:\\Users\\HP\\Desktop\\DUMP\\DhwaniAI-Guard';
+    const result = spawnSync('cmd.exe', [
+      '/c',
+      'set JAVA_HOME=C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.20.101-hotspot&& set PATH=%JAVA_HOME%\\bin;%PATH%&& gradlew.bat assembleDebug'
+    ], {
+      cwd: projectDir,
+      encoding: 'utf-8',
+      timeout: 240000,
+    });
+
+    if (result.status !== 0) {
+      res.status(500).json({ error: 'APK build failed', detail: result.stderr || result.stdout });
+      return;
+    }
+
+    const apkSrc = path.join(projectDir, 'app', 'build', 'outputs', 'apk', 'debug', 'app-debug.apk');
+    const apkDest = 'C:\\Users\\HP\\Desktop\\DUMP\\DhwaniAI-Guard.apk';
+    if (fs.existsSync(apkSrc)) {
+      fs.copyFileSync(apkSrc, apkDest);
+    }
+
+    res.json({
+      status: 'success',
+      apkPath: apkDest,
+      message: 'APK compiled successfully with calibrated parameters!',
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Build failed', detail: error.message });
   }
 };

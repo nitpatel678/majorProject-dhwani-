@@ -6,6 +6,7 @@
   "scripts": {
     "dev:backend": "cd apps/backend && npm run dev",
     "dev:dashboard": "cd apps/dashboard && npm run dev",
+    "dev:inference": "cd apps/backend && npm run inference",
     "build:dashboard": "cd apps/dashboard && npm run build",
     "db:push": "cd apps/backend && npx prisma db push",
     "db:seed": "cd apps/backend && npx prisma db seed",
