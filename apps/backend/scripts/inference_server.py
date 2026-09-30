@@ -163,53 +163,186 @@ def run_tflite(spectrogram: np.ndarray) -> List[float]:
     output = interpreter.get_tensor(output_details[0]['index'])
     return [float(x) for x in output[0]]
 
+def compute_acoustic_physics(samples: np.ndarray, sr: int = TARGET_SAMPLE_RATE) -> Dict[str, float]:
+    """Computes DSP spectral and temporal physics features for anti-spoofing."""
+    if len(samples) < EXPECTED_SAMPLES:
+        s = np.pad(samples, (0, EXPECTED_SAMPLES - len(samples)))
+    else:
+        s = samples[:EXPECTED_SAMPLES]
+        
+    rms = float(np.sqrt(np.mean(s ** 2)))
+    peak = float(np.max(np.abs(s)))
+    crest = peak / (rms + 1e-6)
+    
+    fft = np.abs(np.fft.rfft(s))
+    freqs = np.fft.rfftfreq(len(s), 1 / sr)
+    
+    e_low = float(np.sum(fft[freqs < 600] ** 2))
+    e_mid = float(np.sum(fft[(freqs >= 600) & (freqs < 3000)] ** 2))
+    e_high = float(np.sum(fft[freqs >= 3000] ** 2))
+    total_e = e_low + e_mid + e_high + 1e-9
+    
+    centroid = float(np.sum(freqs * fft) / (np.sum(fft) + 1e-9))
+    zcr = float(np.mean(np.abs(np.diff(np.sign(s)))) / 2)
+    
+    return {
+        "rms": rms,
+        "peak": peak,
+        "crest": crest,
+        "low_ratio": e_low / total_e,
+        "mid_ratio": e_mid / total_e,
+        "high_ratio": e_high / total_e,
+        "centroid": centroid,
+        "zcr": zcr
+    }
+
 def assess_threat(
     probabilities: List[float],
     rms: float,
     samples: Optional[np.ndarray] = None,
     sensitivity: float = 1.0,
-    rms_floor: float = 0.018,
+    rms_floor: float = 0.015,
     min_sustained: int = 2,
     decay_rate: int = 20
 ) -> Dict:
     normal_prob = probabilities[6]
-    em_probs = {c: probabilities[CLASSES.index(c)] for c in EMERGENCY_CLASSES}
-    top_class, top_conf = max(em_probs.items(), key=lambda x: x[1])
+    em_probs = {CLASSES[i]: probabilities[i] for i in range(6)}
+    top_raw_class, top_raw_conf = max(em_probs.items(), key=lambda x: x[1])
     emergency_mass = sum(em_probs.values())
     
-    # Calculate transient peak and crest factor
-    peak = float(np.max(np.abs(samples))) if samples is not None and len(samples) > 0 else 0.0
-    crest_factor = peak / (rms + 1e-6)
+    if samples is not None and len(samples) > 0:
+        dsp = compute_acoustic_physics(samples)
+    else:
+        dsp = {
+            "rms": rms,
+            "peak": 0.0,
+            "crest": 1.0,
+            "low_ratio": 0.5,
+            "mid_ratio": 0.3,
+            "high_ratio": 0.2,
+            "centroid": 2000.0,
+            "zcr": 0.1
+        }
+        
+    peak = dsp["peak"]
+    crest_factor = dsp["crest"]
+    low_r = dsp["low_ratio"]
+    mid_r = dsp["mid_ratio"]
+    high_r = dsp["high_ratio"]
+    centroid = dsp["centroid"]
+    zcr = dsp["zcr"]
     
     is_emergency = False
+    validated_class = "NORMAL"
     is_extreme_burst = False
     
-    # 1. Normal Sound & Noise Floor Rejection:
-    # Ambient murmurs, quiet rooms, and soft voices have high normal_prob, low emergency mass, or low RMS
-    if normal_prob >= 0.35 or emergency_mass < 0.58 or rms < rms_floor:
+    # -------------------------------------------------------------
+    # 1. Absolute Noise Floor & Silence
+    # -------------------------------------------------------------
+    if rms < rms_floor or (rms < 0.010 and peak < 0.08):
         is_emergency = False
-    else:
-        req_thresh = BASE_CLASS_THRESHOLDS.get(top_class, 0.50) / max(sensitivity, 0.5)
+        validated_class = "NORMAL"
         
-        # Path 1: Impulsive Sounds (Gunshot, Glass Break, Vehicle Impact Crash)
-        # Must have a sharp transient crest factor (crest >= 3.8) to eliminate human speech & whispering (crest ~ 2.8)
-        if top_class in ["GUNSHOT_EXPLOSION", "GLASS_BREAK", "IMPACT_CRASH"]:
-            is_valid_impulse = (crest_factor >= 3.8) and (peak >= 0.25) and (top_conf >= req_thresh or emergency_mass >= 0.75)
-            if is_valid_impulse:
+    # -------------------------------------------------------------
+    # 2. Loud Human Speech & Voice Filter:
+    # Human speech (including loud talking/shouting/whispers) has > 90% energy below 600 Hz.
+    # -------------------------------------------------------------
+    elif low_r >= 0.90 and high_r < 0.05 and zcr < 0.08:
+        is_emergency = False
+        validated_class = "NORMAL"
+        
+    # -------------------------------------------------------------
+    # 3. Ambient Street Traffic / Low Rumble Dominance:
+    # Indian street walks have dominant low-frequency engine rumble (low_r >= 0.65).
+    # Screams, glass breaks, and sirens do NOT have 65%+ energy in rumble!
+    # -------------------------------------------------------------
+    elif low_r >= 0.65 and top_raw_class in ["SCREAM", "GLASS_BREAK", "SIREN"] and crest_factor < 5.0 and peak < 0.50:
+        is_emergency = False
+        validated_class = "NORMAL"
+        
+    # -------------------------------------------------------------
+    # 4. Neural Net High Normal Confidence:
+    # (Exception: if pure acoustic scream/siren tone exists or massive kinetic detonation exists)
+    # -------------------------------------------------------------
+    elif normal_prob >= 0.50 and emergency_mass <= 0.45 and not (mid_r >= 0.80 and low_r < 0.10) and not (peak >= 0.70 and rms >= 0.15):
+        is_emergency = False
+        validated_class = "NORMAL"
+        
+    else:
+        # ---------------------------------------------------------
+        # Class-Specific Acoustic & DSP Physics Validation
+        # ---------------------------------------------------------
+        
+        # --- GLASS BREAK ---
+        # Window shatter shards: high_r >= 0.07, centroid >= 1900, low_r < 0.50;
+        # Heavy bottle smash: crest >= 6.5, peak >= 0.28, low_r < 0.60 (not street rumble)
+        if (top_raw_class == "GLASS_BREAK" or em_probs["GLASS_BREAK"] >= 0.15):
+            is_window_shatter = (high_r >= 0.07 and centroid >= 1900 and low_r < 0.50)
+            is_bottle_smash = (crest_factor >= 6.5 and peak >= 0.28 and low_r < 0.60)
+            if is_window_shatter or is_bottle_smash:
                 is_emergency = True
-                # Immediate burst trigger for true high-energy gunshots, crashes, or glass shatter
-                if (crest_factor >= 6.0 and peak >= 0.30 and top_conf >= 0.65) or (emergency_mass >= 0.85 and peak >= 0.45 and crest_factor >= 3.8):
+                validated_class = "GLASS_BREAK"
+                if crest_factor >= 7.5 and peak >= 0.35:
                     is_extreme_burst = True
                     
-        # Path 2: Sustained Sounds (Scream, Siren, Crowd Panic)
-        # Tonal vocalization or sirens: requires sustained multi-window presence
-        else:
-            if top_class == "CROWD_PANIC":
-                # Strict check for crowd panic to avoid mistaking street murmur for stampede
-                is_emergency = (top_conf >= 0.55) and (emergency_mass >= 0.70) and (rms >= 0.025)
-            else: # SCREAM or SIREN
-                is_emergency = (top_conf >= req_thresh or emergency_mass >= 0.60) and (rms >= 0.022)
-    
+        # --- GUNSHOT / EXPLOSION ---
+        # Impulsive report: crest >= 3.5 and peak >= 0.18.
+        # Must not be low-energy street rumble: require (low_r < 0.65) OR (low_r >= 0.65 and peak >= 0.50 and rms >= 0.08)
+        # OR massive detonation: (peak >= 0.70 and rms >= 0.15 and em_probs["GUNSHOT_EXPLOSION"] >= 0.18)
+        if not is_emergency and (top_raw_class == "GUNSHOT_EXPLOSION" or em_probs["GUNSHOT_EXPLOSION"] >= 0.15):
+            is_gun_physics = (low_r < 0.65) or (low_r >= 0.65 and peak >= 0.50 and rms >= 0.08) or (peak >= 0.70 and rms >= 0.15)
+            if (crest_factor >= 3.5 and peak >= 0.18 and is_gun_physics) or (peak >= 0.80 and rms >= 0.18 and em_probs["GUNSHOT_EXPLOSION"] >= 0.20):
+                is_emergency = True
+                validated_class = "GUNSHOT_EXPLOSION"
+                if crest_factor >= 6.0 and peak >= 0.30:
+                    is_extreme_burst = True
+                    
+        # --- IMPACT / CAR CRASH ---
+        # Automotive metal collision:
+        # Requires actual crash activation (Crash >= 12% or top is Crash) and genuine crash energy
+        if not is_emergency:
+            is_crash_activation = (top_raw_class == "IMPACT_CRASH") or (em_probs["IMPACT_CRASH"] >= 0.12 and emergency_mass >= 0.45)
+            is_crash_kinetic = (rms >= 0.06 and peak >= 0.35 and crest_factor >= 3.0) or (em_probs["IMPACT_CRASH"] >= 0.30 and peak >= 0.25)
+            # If heavy low rumble (low_r >= 0.75), require top is crash OR crash probability >= 20%
+            is_not_rumble = (low_r < 0.75) or (em_probs["IMPACT_CRASH"] >= 0.20) or (top_raw_class == "IMPACT_CRASH")
+            if is_crash_activation and is_crash_kinetic and is_not_rumble and not (low_r >= 0.95 and zcr < 0.05):
+                is_emergency = True
+                validated_class = "IMPACT_CRASH"
+                if peak >= 0.50 and crest_factor >= 3.5:
+                    is_extreme_burst = True
+                    
+        # --- SCREAM ---
+        # Screams are concentrated in 800-3000 Hz vocal range (mid_r >= 0.25, low_r < 0.50, rms >= 0.015)
+        # OR pure acoustic vocal pitch: mid_r >= 0.75, low_r < 0.10, centroid >= 1800, rms >= 0.02
+        if not is_emergency:
+            is_pure_scream = (mid_r >= 0.75 and low_r < 0.10 and centroid >= 1800 and rms >= 0.02)
+            is_standard_scream = (top_raw_class == "SCREAM" or em_probs["SCREAM"] >= 0.10 or emergency_mass >= 0.50) and mid_r >= 0.22 and low_r < 0.50 and rms >= 0.015
+            if is_pure_scream or is_standard_scream:
+                is_emergency = True
+                validated_class = "SCREAM"
+                
+        # --- CROWD PANIC ---
+        # Stampedes and shrieking crowds: elevated RMS (>= 0.030), requires genuine panic activation (em_probs >= 0.22)
+        if not is_emergency and (top_raw_class == "CROWD_PANIC" or em_probs["CROWD_PANIC"] >= 0.22):
+            if rms >= 0.030 and em_probs["CROWD_PANIC"] >= 0.20 and emergency_mass >= 0.45 and low_r < 0.85:
+                is_emergency = True
+                validated_class = "CROWD_PANIC"
+                
+        # --- SIREN ---
+        # Pure tonal or dual-tone wail in 700-2500 Hz:
+        if not is_emergency:
+            is_pure_siren_tone = (mid_r >= 0.60 and low_r <= 0.25 and centroid >= 1100 and rms >= 0.015)
+            is_standard_siren = (top_raw_class == "SIREN" or em_probs["SIREN"] >= 0.15) and mid_r >= 0.35 and low_r < 0.40 and rms >= 0.015
+            if is_pure_siren_tone or is_standard_siren:
+                is_emergency = True
+                validated_class = "SIREN"
+                
+        # Fallback if neural net has overwhelming emergency consensus (> 0.65) and not rejected by speech/rumble
+        if not is_emergency and top_raw_conf >= 0.60 and emergency_mass >= 0.70 and rms >= 0.025:
+            if low_r < 0.80 and peak >= 0.30:  # Not pure voice or traffic rumble
+                is_emergency = True
+                validated_class = top_raw_class
+
     assessor = global_assessor
     now = time.time()
     
@@ -219,8 +352,8 @@ def assess_threat(
     assessor.history.append({
         "is_emergency": is_emergency,
         "emergency_mass": emergency_mass,
-        "top_class": top_class if is_emergency else "NORMAL",
-        "confidence": top_conf if is_emergency else normal_prob,
+        "top_class": validated_class if is_emergency else "NORMAL",
+        "confidence": em_probs.get(validated_class, top_raw_conf) if is_emergency else normal_prob,
         "probabilities": probabilities,
         "rms": rms,
         "crest": crest_factor,
@@ -235,16 +368,13 @@ def assess_threat(
         if assessor.active_emergency_start is None:
             assessor.active_emergency_start = now
             
-        # Responsive threat score tied directly to actual neural confidence
-        conf_pts = int(top_conf * 60)
-        mass_pts = int((emergency_mass - normal_prob) * 25)
-        streak_pts = min(assessor.consecutive_dangerous * 10, 20)
-        target_score = min(100, conf_pts + mass_pts + streak_pts)
+        conf = em_probs.get(validated_class, top_raw_conf)
+        pts = int(conf * 60) + int(emergency_mass * 20) + min(assessor.consecutive_dangerous * 10, 20)
+        target_score = min(100, max(50, pts))
         assessor.threat_score = max(assessor.threat_score, target_score)
     else:
         assessor.calm_streak += 1
         assessor.consecutive_dangerous = 0
-        # Swift decay when ambient/normal returns (drop decay_rate points per window)
         assessor.threat_score = max(0, assessor.threat_score - decay_rate)
         if assessor.threat_score < 30:
             assessor.active_emergency_start = None
@@ -282,7 +412,7 @@ def assess_threat(
     
     return {
         "predictedClass": consensus_class,
-        "rawClass": top_class,
+        "rawClass": validated_class if is_emergency else "NORMAL",
         "confidence": round(float(consensus_conf), 4),
         "label": CLASS_LABELS.get(consensus_class, consensus_class),
         "probabilities": [round(p, 4) for p in probabilities],
@@ -305,6 +435,7 @@ def assess_threat(
             "Environment: Normal / Safe"
         )
     }
+
 
 # =============================================================================
 # FastAPI Application
