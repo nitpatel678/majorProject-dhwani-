@@ -268,7 +268,7 @@ def assess_threat(
         is_emergency = False
         validated_class = "NORMAL"
         
-    elif low_r >= 0.72 and mid_r < 0.24 and centroid < 1050 and not (peak >= 0.65 and rms >= 0.070):
+    elif low_r >= 0.72 and mid_r < 0.24 and (centroid < 1050 or rms < 0.060) and not (peak >= 0.65 and rms >= 0.070):
         is_emergency = False
         validated_class = "NORMAL"
 
@@ -326,7 +326,7 @@ def assess_threat(
         if not is_emergency and (kinetic_mass >= 0.22 or top_raw_class in ["IMPACT_CRASH", "GUNSHOT_EXPLOSION"]):
             is_gun = (peak >= 0.35 and rms >= 0.028 and low_r >= 0.16 and (crest_factor >= 3.2 or peak >= 0.70) and (em_probs["GUNSHOT_EXPLOSION"] >= 0.15 or top_raw_class == "GUNSHOT_EXPLOSION"))
             is_blast = (peak >= 0.65 and rms >= 0.060 and low_r >= 0.18 and (kinetic_mass >= 0.22 or top_raw_conf >= 0.35))
-            is_crash = (peak >= 0.25 and rms >= 0.030 and low_r >= 0.18 and (kinetic_mass >= 0.24 or top_raw_class == "IMPACT_CRASH"))
+            is_crash = (peak >= 0.25 and rms >= 0.030 and low_r >= 0.18 and low_r < 0.78 and (kinetic_mass >= 0.24 or top_raw_class == "IMPACT_CRASH"))
             
             if is_gun or is_blast or is_crash:
                 is_emergency = True
