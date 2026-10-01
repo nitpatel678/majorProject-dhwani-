@@ -237,121 +237,125 @@ def assess_threat(
     is_instant_emergency = False
     
     # -------------------------------------------------------------
-    # 1. Absolute Noise Floor & Silence Gate
+    # Gate 1: Energy Floor (Digital Silence & Ambient Noise Floor)
     # -------------------------------------------------------------
-    if rms < rms_floor or (rms < 0.015 and peak < 0.08):
+    if rms < 0.010 or (rms < 0.015 and peak < 0.25):
         is_emergency = False
         validated_class = "NORMAL"
         
     # -------------------------------------------------------------
-    # 2. Loud Human Speech & Dialogue Gate
+    # Gate 2: Clear Ambient Normal Dominance
     # -------------------------------------------------------------
-    elif low_r >= 0.90 and high_r < 0.05 and zcr < 0.08:
+    elif normal_prob >= 0.65 and crest_factor < 4.5 and peak < 0.65:
         is_emergency = False
         validated_class = "NORMAL"
         
     # -------------------------------------------------------------
-    # 3. Sub-Bass Thuds, Wrestling Slams, 808 Trap Bass & Street Rumble
-    # Glass break CANNOT have low_r >= 0.45
-    # Screams / Sirens CANNOT have low_r >= 0.50
+    # Gate 3: Human Speech & Conversation Gate
     # -------------------------------------------------------------
-    elif low_r >= 0.45 and top_raw_class == "GLASS_BREAK" and high_r < 0.25:
-        is_emergency = False
-        validated_class = "NORMAL"
-        
-    elif low_r >= 0.50 and top_raw_class in ["SCREAM", "SIREN"]:
-        is_emergency = False
-        validated_class = "NORMAL"
-        
-    # Rejection for synthetic video thuds / wrestling slams / 808 sub-bass beats
-    elif low_r >= 0.72 and mid_r < 0.24 and centroid < 1050:
+    elif low_r >= 0.88 and high_r < 0.06 and zcr < 0.09 and top_raw_conf < 0.70:
         is_emergency = False
         validated_class = "NORMAL"
         
     # -------------------------------------------------------------
-    # 4. Normal Dominance Gate
+    # Gate 4: Sub-Bass Thuds, Wrestling Slams & 808 Trap Bass SFX Rejection
     # -------------------------------------------------------------
-    elif normal_prob >= 0.40 and normal_prob > top_raw_conf and not (high_r >= 0.25 and centroid >= 2800) and not (peak >= 0.85 and rms >= 0.18) and not (mid_r >= 0.70 and low_r <= 0.15):
+    elif low_r >= 0.60 and top_raw_class == "GLASS_BREAK" and high_r < 0.20:
+        is_emergency = False
+        validated_class = "NORMAL"
+        
+    elif low_r >= 0.70 and (top_raw_class in ["SCREAM", "SIREN"]):
+        is_emergency = False
+        validated_class = "NORMAL"
+        
+    elif low_r >= 0.72 and mid_r < 0.24 and centroid < 1050 and not (peak >= 0.65 and rms >= 0.070):
+        is_emergency = False
+        validated_class = "NORMAL"
+
+    # -------------------------------------------------------------
+    # Gate 5: Laptop/Phone Speaker High-Mid Friction & Quiet ASMR Rejection
+    # -------------------------------------------------------------
+    elif mid_r >= 0.65 and low_r <= 0.18 and rms < 0.035 and top_raw_conf < 0.75:
+        is_emergency = False
+        validated_class = "NORMAL"
+        
+    # -------------------------------------------------------------
+    # Gate 6: Normal Dominance Gate
+    # -------------------------------------------------------------
+    elif normal_prob >= 0.40 and normal_prob > top_raw_conf and not (high_r >= 0.25 and centroid >= 3000 and em_probs["GLASS_BREAK"] >= 0.20) and not (peak >= 0.85 and rms >= 0.15) and not (mid_r >= 0.75 and rms >= 0.050):
         is_emergency = False
         validated_class = "NORMAL"
         
     else:
         # ---------------------------------------------------------
-        # Class-Specific Acoustic & DSP Physics Validation
+        # Class-Specific Acoustic & DSP Physics Validation (V4)
         # ---------------------------------------------------------
         
         # --- GLASS BREAK ---
-        if (top_raw_class == "GLASS_BREAK" or em_probs["GLASS_BREAK"] >= 0.18) and (high_r >= 0.12 and centroid >= 2400 and low_r < 0.45):
+        if (top_raw_class == "GLASS_BREAK" or em_probs["GLASS_BREAK"] >= 0.20) and (high_r >= 0.18 and centroid >= 2500 and low_r < 0.50):
             is_emergency = True
             validated_class = "GLASS_BREAK"
-            if high_r >= 0.18 and centroid >= 2500 and peak >= 0.25:
+            if high_r >= 0.22 and centroid >= 2700 and peak >= 0.25:
                 is_instant_emergency = True
                 
-        # --- PURE PIERCING SCREAM OR SIREN (ACOUSTIC PHYSICS PHENOMENON) ---
-        if not is_emergency and (mid_r >= 0.65 and low_r <= 0.20 and centroid >= 1100 and rms >= 0.015 and peak >= 0.20):
-            if top_raw_class == "SIREN" or em_probs["SIREN"] >= 0.20:
-                is_emergency = True
-                validated_class = "SIREN"
-                is_instant_emergency = True
-            elif top_raw_class in ["SCREAM", "SIREN", "GLASS_BREAK"] or em_probs["SCREAM"] >= 0.05 or emergency_mass >= 0.40:
+        # --- PIERCING VOCAL DISTRESS / HIGH-ENERGY SCREAM ---
+        if not is_emergency and (mid_r >= 0.70 and low_r <= 0.18 and centroid >= 1300 and rms >= 0.038 and peak >= 0.35):
+            if (em_probs["SCREAM"] >= 0.15 or (top_raw_class == "SCREAM" and emergency_mass >= 0.40)):
                 is_emergency = True
                 validated_class = "SCREAM"
-                if peak >= 0.25:
-                    is_instant_emergency = True
+                is_instant_emergency = True
 
         # --- STANDARD SCREAM (VOCAL DISTRESS) ---
-        if not is_emergency and (top_raw_class == "SCREAM" or em_probs["SCREAM"] >= 0.18 or emergency_mass >= 0.45):
-            if low_r <= 0.35 and mid_r >= 0.45 and centroid >= 1700 and rms >= 0.020 and peak >= 0.25:
+        if not is_emergency and (top_raw_class == "SCREAM" or em_probs["SCREAM"] >= 0.20):
+            if low_r <= 0.48 and mid_r >= 0.35 and centroid >= 1100 and rms >= 0.018 and peak >= 0.20:
                 is_emergency = True
                 validated_class = "SCREAM"
-                if mid_r >= 0.65 and low_r <= 0.18 and peak >= 0.30:
+                if mid_r >= 0.55 and peak >= 0.30:
                     is_instant_emergency = True
 
-        # --- STANDARD SIREN ---
-        if not is_emergency and (top_raw_class == "SIREN" or em_probs["SIREN"] >= 0.12):
-            if mid_r >= 0.35 and low_r <= 0.40 and centroid >= 1000 and rms >= 0.015:
+        # --- SIREN (CONTINUOUS ALERT TONE) ---
+        if not is_emergency and (top_raw_class == "SIREN" or em_probs["SIREN"] >= 0.15 or (mid_r >= 0.75 and em_probs["SIREN"] >= 0.08)):
+            if mid_r >= 0.35 and low_r <= 0.55 and centroid >= 850 and rms >= 0.018:
                 is_emergency = True
                 validated_class = "SIREN"
-                if mid_r >= 0.60 and low_r <= 0.25:
+                if mid_r >= 0.65 and low_r <= 0.30:
                     is_instant_emergency = True
                     
         # --- KINETIC BURST: VEHICULAR CRASH OR GUNSHOT / EXPLOSION ---
         kinetic_mass = em_probs["IMPACT_CRASH"] + em_probs["GUNSHOT_EXPLOSION"]
-        if not is_emergency and (kinetic_mass >= 0.28 or top_raw_class in ["IMPACT_CRASH", "GUNSHOT_EXPLOSION"]):
-            is_gun = (centroid >= 1200 and low_r < 0.70 and crest_factor >= 3.5 and peak >= 0.20 and (em_probs["GUNSHOT_EXPLOSION"] >= 0.20 or top_raw_class == "GUNSHOT_EXPLOSION"))
-            is_blast = (peak >= 0.75 and rms >= 0.12 and kinetic_mass >= 0.28)
-            is_crash = (mid_r >= 0.15 and (low_r < 0.72 or (low_r < 0.82 and centroid >= 1200)) and peak >= 0.30 and rms >= 0.05 and centroid >= 1000 and kinetic_mass >= 0.28)
+        if not is_emergency and (kinetic_mass >= 0.22 or top_raw_class in ["IMPACT_CRASH", "GUNSHOT_EXPLOSION"]):
+            is_gun = (peak >= 0.35 and rms >= 0.028 and low_r >= 0.16 and (crest_factor >= 3.2 or peak >= 0.70) and (em_probs["GUNSHOT_EXPLOSION"] >= 0.15 or top_raw_class == "GUNSHOT_EXPLOSION"))
+            is_blast = (peak >= 0.65 and rms >= 0.060 and low_r >= 0.18 and (kinetic_mass >= 0.22 or top_raw_conf >= 0.35))
+            is_crash = (peak >= 0.25 and rms >= 0.030 and low_r >= 0.18 and (kinetic_mass >= 0.24 or top_raw_class == "IMPACT_CRASH"))
             
             if is_gun or is_blast or is_crash:
                 is_emergency = True
                 if is_gun and em_probs["GUNSHOT_EXPLOSION"] >= em_probs["IMPACT_CRASH"]:
                     validated_class = "GUNSHOT_EXPLOSION"
-                    if peak >= 0.75 and crest_factor >= 4.0:
+                    if peak >= 0.70 and crest_factor >= 3.8:
                         is_instant_emergency = True
                 elif is_crash:
                     validated_class = "IMPACT_CRASH"
-                    if (kinetic_mass >= 0.45 and peak >= 0.60 and rms >= 0.10) or (peak >= 0.80 and rms >= 0.15):
+                    if (kinetic_mass >= 0.40 and peak >= 0.50 and rms >= 0.07) or (peak >= 0.70 and rms >= 0.10):
                         is_instant_emergency = True
                 else:
                     validated_class = "GUNSHOT_EXPLOSION" if em_probs["GUNSHOT_EXPLOSION"] >= em_probs["IMPACT_CRASH"] else "IMPACT_CRASH"
-                    if peak >= 0.75 and rms >= 0.12:
+                    if peak >= 0.65:
                         is_instant_emergency = True
                         
         # --- CROWD PANIC ---
-        # Genuine panic stampedes have elevated chaotic motion: zcr >= 0.10, rms >= 0.06, peak >= 0.50
-        if not is_emergency and (top_raw_class == "CROWD_PANIC" or em_probs["CROWD_PANIC"] >= 0.22):
-            if rms >= 0.06 and peak >= 0.50 and zcr >= 0.10 and em_probs["CROWD_PANIC"] >= 0.22 and low_r < 0.55 and mid_r >= 0.40:
+        if not is_emergency and (top_raw_class == "CROWD_PANIC" or em_probs["CROWD_PANIC"] >= 0.16):
+            if rms >= 0.025 and peak >= 0.25 and zcr >= 0.05 and low_r < 0.68:
                 is_emergency = True
                 validated_class = "CROWD_PANIC"
-                if em_probs["CROWD_PANIC"] >= 0.45 and rms >= 0.10 and peak >= 0.58:
+                if em_probs["CROWD_PANIC"] >= 0.30 and rms >= 0.05:
                     is_instant_emergency = True
                 
-        # Fallback for overwhelming consensus (> 0.75)
-        if not is_emergency and top_raw_conf >= 0.75 and emergency_mass >= 0.80 and rms >= 0.040:
-            if low_r < 0.70 and peak >= 0.40:
-                is_emergency = True
-                validated_class = top_raw_class
-                is_instant_emergency = True
+        # High-confidence fallback
+        if not is_emergency and top_raw_conf >= 0.75 and emergency_mass >= 0.80 and rms >= 0.030 and low_r >= 0.15:
+            is_emergency = True
+            validated_class = top_raw_class
+            is_instant_emergency = True
 
     assessor = global_assessor
     now = time.time()
