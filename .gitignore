@@ -9,8 +9,19 @@ coverage/
 .next/
 .expo/
 *.tflite
+!apps/DhwaniAI-Guard/app/src/main/assets/*.tflite
 *.h5
 *.keras
 uploads/
 __pycache__/
 *.pyc
+
+# Android
+.gradle/
+build/
+app/build/
+*.apk
+local.properties
+.externalNativeBuild/
+.idea/
+*.iml
