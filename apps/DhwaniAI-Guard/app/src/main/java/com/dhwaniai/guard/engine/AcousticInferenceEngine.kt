@@ -448,46 +448,54 @@ class AcousticInferenceEngine(context: Context) {
         }
         else {
             // ---------------------------------------------------------
-            // Class-Specific Acoustic & DSP Physics Validation (Production V5)
+            // Class-Specific Acoustic & DSP Physics Validation (Production V6)
             // ---------------------------------------------------------
 
             // --- GLASS BREAK ---
-            // High-frequency brittle shatter: highRatio >= 0.20, centroid >= 2400, zcr >= 0.15, peak >= 0.25
-            if ((glassProb >= 0.20f || topRawClass == "GLASS_BREAK") &&
-                (physics.highRatio >= 0.20f && physics.centroid >= 2400f && physics.zcr >= 0.15f && physics.peak >= 0.25f && physics.lowRatio < 0.50f)) {
+            // High-frequency brittle shatter
+            if ((glassProb >= 0.16f || topRawClass == "GLASS_BREAK") &&
+                (physics.highRatio >= 0.18f && physics.centroid >= 2300f && physics.zcr >= 0.14f && physics.peak >= 0.22f && physics.lowRatio < 0.50f)) {
                 isEmergency = true
                 validatedClass = "GLASS_BREAK"
             }
 
-            // --- SCREAM (VOCAL DISTRESS) ---
-            // High-pitch hyper-phonation shriek
-            if (!isEmergency && (screamProb >= 0.18f || (topRawClass == "SCREAM" && emergencyMass >= 0.35f))) {
-                if (physics.lowRatio <= 0.25f && physics.midRatio >= 0.65f && physics.centroid >= 1750f && physics.zcr >= 0.13f && physics.rms >= 0.035f && physics.peak >= 0.28f) {
+            // --- SCREAM & CROWD PANIC (VOCAL DISTRESS) ---
+            // Standard Scream
+            if (!isEmergency && (screamProb >= 0.15f || (topRawClass == "SCREAM" && emergencyMass >= 0.30f))) {
+                if (physics.lowRatio <= 0.25f && physics.midRatio >= 0.65f && physics.centroid >= 1700f && physics.centroid < 2750f && physics.highRatio < 0.09f && physics.zcr >= 0.12f && physics.rms >= 0.030f && physics.peak >= 0.25f) {
                     isEmergency = true
                     validatedClass = "SCREAM"
                 }
             }
 
-            // Pure Vocal Shriek (LowR <= 0.05, MidR >= 0.75, Centroid >= 2300, ZCR >= 0.14)
-            if (!isEmergency && (physics.lowRatio <= 0.05f && physics.midRatio >= 0.75f && physics.centroid >= 2300f && physics.zcr >= 0.14f && physics.rms >= 0.045f && physics.peak >= 0.35f && emergencyMass >= 0.35f)) {
+            // Speaker Distressed Vocal Shriek (Low bass roll-off, strong mid-resonance, elevated centroid)
+            if (!isEmergency && (screamProb >= 0.10f || panicProb >= 0.12f || emergencyMass >= 0.20f)) {
+                if (physics.lowRatio <= 0.15f && physics.midRatio >= 0.70f && physics.centroid >= 1800f && physics.centroid < 2750f && physics.highRatio < 0.08f && physics.zcr >= 0.12f && physics.rms >= 0.030f && physics.peak >= 0.25f) {
+                    isEmergency = true
+                    validatedClass = if (screamProb >= panicProb) "SCREAM" else "CROWD_PANIC"
+                }
+            }
+
+            // Pure Vocal Shriek
+            if (!isEmergency && (physics.lowRatio <= 0.05f && physics.midRatio >= 0.75f && physics.centroid >= 2000f && physics.centroid < 2750f && physics.highRatio < 0.08f && physics.zcr >= 0.13f && physics.rms >= 0.035f && physics.peak >= 0.30f && emergencyMass >= 0.18f)) {
                 isEmergency = true
                 validatedClass = "SCREAM"
             }
 
             // --- SIREN (CONTINUOUS ALERT TONE) ---
             // Pure tone mid-band acoustic signature
-            if (!isEmergency && (sirenProb >= 0.15f || topRawClass == "SIREN" || isPureSiren)) {
-                if (physics.midRatio >= 0.65f && physics.lowRatio <= 0.35f && physics.centroid >= 850f && physics.rms >= 0.018f) {
+            if (!isEmergency && (sirenProb >= 0.12f || topRawClass == "SIREN" || isPureSiren)) {
+                if (physics.midRatio >= 0.65f && physics.lowRatio <= 0.35f && physics.centroid >= 850f && physics.rms >= 0.015f) {
                     isEmergency = true
                     validatedClass = "SIREN"
                 }
             }
 
             // --- KINETIC IMPACT: CRASH OR GUNSHOT / EXPLOSION ---
-            if (!isEmergency && (kineticMass >= 0.20f || topRawClass in arrayOf("IMPACT_CRASH", "GUNSHOT_EXPLOSION"))) {
-                val isGun = (physics.peak >= 0.65f && physics.rms >= 0.050f && (physics.crestFactor >= 3.2f || physics.peak >= 0.75f) && (gunProb >= 0.18f || topRawClass == "GUNSHOT_EXPLOSION"))
-                val isCrash = (physics.peak >= 0.55f && physics.rms >= 0.050f && physics.lowRatio >= 0.18f && physics.lowRatio < 0.82f && (crashProb >= 0.18f || topRawClass == "IMPACT_CRASH" || kineticMass >= 0.30f))
-                val isBlast = (physics.peak >= 0.70f && physics.rms >= 0.070f && kineticMass >= 0.22f)
+            if (!isEmergency && (kineticMass >= 0.18f || topRawClass in arrayOf("IMPACT_CRASH", "GUNSHOT_EXPLOSION"))) {
+                val isGun = (physics.peak >= 0.60f && physics.rms >= 0.045f && (physics.crestFactor >= 3.0f || physics.peak >= 0.70f) && (gunProb >= 0.15f || topRawClass == "GUNSHOT_EXPLOSION"))
+                val isCrash = (physics.peak >= 0.50f && physics.rms >= 0.045f && physics.lowRatio >= 0.18f && physics.lowRatio < 0.82f && (crashProb >= 0.15f || topRawClass == "IMPACT_CRASH" || kineticMass >= 0.25f))
+                val isBlast = (physics.peak >= 0.65f && physics.rms >= 0.065f && kineticMass >= 0.20f)
 
                 if (isGun || isCrash || isBlast) {
                     isEmergency = true
@@ -506,9 +514,9 @@ class AcousticInferenceEngine(context: Context) {
             }
 
             // --- CROWD PANIC ---
-            // Multi-vocal chaotic distress: panicProb >= 0.28, rms >= 0.060, peak >= 0.45, centroid >= 1350
-            if (!isEmergency && (panicProb >= 0.28f || (topRawClass == "CROWD_PANIC" && panicProb >= 0.22f))) {
-                if (physics.rms >= 0.060f && physics.peak >= 0.45f && physics.zcr >= 0.08f && physics.lowRatio < 0.60f) {
+            // Multi-vocal chaotic distress
+            if (!isEmergency && (panicProb >= 0.22f || (topRawClass == "CROWD_PANIC" && panicProb >= 0.18f))) {
+                if (physics.rms >= 0.050f && physics.peak >= 0.40f && physics.zcr >= 0.08f && physics.lowRatio < 0.65f) {
                     isEmergency = true
                     validatedClass = "CROWD_PANIC"
                 }
@@ -561,7 +569,7 @@ data class ClassificationResult(
     val physics: AcousticPhysics? = null
 ) {
     val isDangerous: Boolean
-        get() = isEmergency && predictedClass != "NORMAL" && predictedClass != "SIREN"
+        get() = isEmergency && predictedClass != "NORMAL"
 
     val threatLevel: String
         get() = when {

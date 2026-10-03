@@ -292,40 +292,46 @@ def assess_threat(
         
     else:
         # ---------------------------------------------------------
-        # Class-Specific Acoustic & DSP Physics Validation (Production V5)
+        # Class-Specific Acoustic & DSP Physics Validation (Production V6)
         # ---------------------------------------------------------
         
         # --- GLASS BREAK ---
-        # High-frequency brittle shatter: high_r >= 0.20, centroid >= 2400, zcr >= 0.15, peak >= 0.25
-        if (em_probs["GLASS_BREAK"] >= 0.20 or top_raw_class == "GLASS_BREAK") and (high_r >= 0.20 and centroid >= 2400 and zcr >= 0.15 and peak >= 0.25 and low_r < 0.50):
+        # High-frequency brittle shatter
+        if (em_probs["GLASS_BREAK"] >= 0.16 or top_raw_class == "GLASS_BREAK") and (high_r >= 0.18 and centroid >= 2300 and zcr >= 0.14 and peak >= 0.22 and low_r < 0.50):
             is_emergency = True
             validated_class = "GLASS_BREAK"
                 
-        # --- SCREAM (VOCAL DISTRESS) ---
-        # High-pitch hyper-phonation shriek
-        if not is_emergency and (em_probs["SCREAM"] >= 0.18 or (top_raw_class == "SCREAM" and emergency_mass >= 0.35)):
-            if (low_r <= 0.25 and mid_r >= 0.65 and centroid >= 1750 and zcr >= 0.13 and rms >= 0.035 and peak >= 0.28):
+        # --- SCREAM & CROWD PANIC (VOCAL DISTRESS) ---
+        # Standard Scream
+        if not is_emergency and (em_probs["SCREAM"] >= 0.15 or (top_raw_class == "SCREAM" and emergency_mass >= 0.30)):
+            if (low_r <= 0.25 and mid_r >= 0.65 and centroid >= 1700 and centroid < 2750 and high_r < 0.09 and zcr >= 0.12 and rms >= 0.030 and peak >= 0.25):
                 is_emergency = True
                 validated_class = "SCREAM"
 
-        # Pure Vocal Shriek (LowR <= 0.05, MidR >= 0.75, Centroid >= 2300, ZCR >= 0.14)
-        if not is_emergency and (low_r <= 0.05 and mid_r >= 0.75 and centroid >= 2300 and zcr >= 0.14 and rms >= 0.045 and peak >= 0.35 and emergency_mass >= 0.35):
+        # Speaker Distressed Vocal Shriek (Low bass roll-off, strong mid-resonance, elevated centroid)
+        if not is_emergency and (em_probs["SCREAM"] >= 0.10 or em_probs["CROWD_PANIC"] >= 0.12 or emergency_mass >= 0.20):
+            if (low_r <= 0.15 and mid_r >= 0.70 and centroid >= 1800 and centroid < 2750 and high_r < 0.08 and zcr >= 0.12 and rms >= 0.030 and peak >= 0.25):
+                is_emergency = True
+                validated_class = "SCREAM" if em_probs["SCREAM"] >= em_probs["CROWD_PANIC"] else "CROWD_PANIC"
+
+        # Pure Vocal Shriek
+        if not is_emergency and (low_r <= 0.05 and mid_r >= 0.75 and centroid >= 2000 and centroid < 2750 and high_r < 0.08 and zcr >= 0.13 and rms >= 0.035 and peak >= 0.30 and emergency_mass >= 0.18):
             is_emergency = True
             validated_class = "SCREAM"
 
         # --- SIREN (CONTINUOUS ALERT TONE) ---
         # Pure tone mid-band acoustic signature
-        if not is_emergency and (em_probs["SIREN"] >= 0.15 or top_raw_class == "SIREN" or is_pure_siren):
-            if (mid_r >= 0.65 and low_r <= 0.35 and centroid >= 850 and rms >= 0.018):
+        if not is_emergency and (em_probs["SIREN"] >= 0.12 or top_raw_class == "SIREN" or is_pure_siren):
+            if (mid_r >= 0.65 and low_r <= 0.35 and centroid >= 850 and rms >= 0.015):
                 is_emergency = True
                 validated_class = "SIREN"
                     
         # --- KINETIC IMPACT: CRASH OR GUNSHOT / EXPLOSION ---
         kinetic_mass = em_probs["IMPACT_CRASH"] + em_probs["GUNSHOT_EXPLOSION"]
-        if not is_emergency and (kinetic_mass >= 0.20 or top_raw_class in ["IMPACT_CRASH", "GUNSHOT_EXPLOSION"]):
-            is_gun = (peak >= 0.65 and rms >= 0.050 and (crest_factor >= 3.2 or peak >= 0.75) and (em_probs["GUNSHOT_EXPLOSION"] >= 0.18 or top_raw_class == "GUNSHOT_EXPLOSION"))
-            is_crash = (peak >= 0.55 and rms >= 0.050 and low_r >= 0.18 and low_r < 0.82 and (em_probs["IMPACT_CRASH"] >= 0.18 or top_raw_class == "IMPACT_CRASH" or kinetic_mass >= 0.30))
-            is_blast = (peak >= 0.70 and rms >= 0.070 and kinetic_mass >= 0.22)
+        if not is_emergency and (kinetic_mass >= 0.18 or top_raw_class in ["IMPACT_CRASH", "GUNSHOT_EXPLOSION"]):
+            is_gun = (peak >= 0.60 and rms >= 0.045 and (crest_factor >= 3.0 or peak >= 0.70) and (em_probs["GUNSHOT_EXPLOSION"] >= 0.15 or top_raw_class == "GUNSHOT_EXPLOSION"))
+            is_crash = (peak >= 0.50 and rms >= 0.045 and low_r >= 0.18 and low_r < 0.82 and (em_probs["IMPACT_CRASH"] >= 0.15 or top_raw_class == "IMPACT_CRASH" or kinetic_mass >= 0.25))
+            is_blast = (peak >= 0.65 and rms >= 0.065 and kinetic_mass >= 0.20)
             
             if is_gun or is_crash or is_blast:
                 is_emergency = True
@@ -340,9 +346,9 @@ def assess_threat(
                     validated_class = "GUNSHOT_EXPLOSION" if em_probs["GUNSHOT_EXPLOSION"] >= em_probs["IMPACT_CRASH"] else "IMPACT_CRASH"
                         
         # --- CROWD PANIC ---
-        # Multi-vocal chaotic distress: panic_prob >= 0.28, rms >= 0.060, peak >= 0.45, centroid >= 1350
-        if not is_emergency and (em_probs["CROWD_PANIC"] >= 0.28 or (top_raw_class == "CROWD_PANIC" and em_probs["CROWD_PANIC"] >= 0.22)):
-            if (rms >= 0.060 and peak >= 0.45 and zcr >= 0.08 and low_r < 0.60):
+        # Multi-vocal chaotic distress
+        if not is_emergency and (em_probs["CROWD_PANIC"] >= 0.22 or (top_raw_class == "CROWD_PANIC" and em_probs["CROWD_PANIC"] >= 0.18)):
+            if (rms >= 0.050 and peak >= 0.40 and zcr >= 0.08 and low_r < 0.65):
                 is_emergency = True
                 validated_class = "CROWD_PANIC"
 
@@ -363,7 +369,7 @@ def assess_threat(
         "timestamp": now
     })
     
-    recent_emergencies = [h for h in assessor.history[-3:] if h["is_emergency"]]
+    recent_emergencies = [h for h in assessor.history[-4:] if h["is_emergency"]]
     
     if is_emergency:
         assessor.consecutive_dangerous += 1
@@ -378,7 +384,8 @@ def assess_threat(
     else:
         assessor.calm_streak += 1
         assessor.consecutive_dangerous = 0
-        assessor.threat_score = max(0, assessor.threat_score - decay_rate)
+        if assessor.calm_streak > 1:
+            assessor.threat_score = max(0, assessor.threat_score - decay_rate)
         if assessor.threat_score < 30:
             assessor.active_emergency_start = None
                 

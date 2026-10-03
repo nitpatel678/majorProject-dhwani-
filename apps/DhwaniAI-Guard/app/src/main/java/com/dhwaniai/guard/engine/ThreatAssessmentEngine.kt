@@ -44,7 +44,7 @@ class ThreatAssessmentEngine {
         }
         history.addLast(result)
 
-        val recentEmergencies = history.takeLast(3).filter { it.isDangerous }
+        val recentEmergencies = history.takeLast(4).filter { it.isDangerous }
 
         if (result.isDangerous) {
             consecutiveDangerous++
@@ -58,7 +58,10 @@ class ThreatAssessmentEngine {
         } else {
             calmStreak++
             consecutiveDangerous = 0
-            currentThreatScore = maxOf(0, currentThreatScore - DECAY_RATE)
+            // Grace period: single pause/breath between screams does NOT wipe out the ongoing alarm
+            if (calmStreak > 1) {
+                currentThreatScore = maxOf(0, currentThreatScore - DECAY_RATE)
+            }
         }
 
         // Multi-Window Temporal Hysteresis & Debounce:
